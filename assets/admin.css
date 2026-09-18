@@ -1,0 +1,55 @@
+.inspiration-board-admin {
+	max-width: 760px;
+}
+
+.inspiration-board-admin .ib-summary {
+	font-size: 14px;
+}
+
+.inspiration-board-admin .ib-step {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 4px 20px 16px;
+	margin: 16px 0;
+}
+
+.inspiration-board-admin .ib-num {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	margin-right: 8px;
+	border-radius: 50%;
+	background: #1d2327;
+	color: #fff;
+	font-size: 13px;
+}
+
+.inspiration-board-admin .ib-snippet {
+	position: relative;
+}
+
+.inspiration-board-admin #ib-snippet {
+	width: 100%;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+	background: #f6f7f7;
+}
+
+.inspiration-board-admin #ib-copy {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+}
+
+.inspiration-board-admin progress {
+	width: 100%;
+}
+
+.inspiration-board-admin #ib-errors {
+	color: #b32d2e;
+	max-height: 160px;
+	overflow: auto;
+}

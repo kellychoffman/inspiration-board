@@ -1,0 +1,169 @@
+<?php
+/**
+ * The [inspiration_board] gallery, plus small touches on single
+ * Inspiration posts.
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+add_shortcode( 'inspiration_board', 'inspiration_board_shortcode' );
+add_action( 'wp_enqueue_scripts', 'inspiration_board_register_styles' );
+add_filter( 'body_class', 'inspiration_board_body_class' );
+
+function inspiration_board_register_styles() {
+	wp_register_style(
+		'inspiration-board',
+		INSPIRATION_BOARD_URL . 'assets/board.css',
+		array(),
+		INSPIRATION_BOARD_VERSION
+	);
+	wp_register_script(
+		'inspiration-board',
+		INSPIRATION_BOARD_URL . 'assets/board.js',
+		array(),
+		INSPIRATION_BOARD_VERSION,
+		true
+	);
+
+	// Enqueue early on the board page so the theme's title is hidden before paint.
+	if ( inspiration_board_is_board_page() || ( is_singular( 'post' ) && inspiration_board_is_pin( get_queried_object_id() ) ) ) {
+		wp_enqueue_style( 'inspiration-board' );
+	}
+}
+
+/**
+ * Whether the current request is a page that shows the board.
+ */
+function inspiration_board_is_board_page() {
+	if ( ! is_singular() ) {
+		return false;
+	}
+	$post = get_queried_object();
+	return $post instanceof WP_Post && has_shortcode( $post->post_content, 'inspiration_board' );
+}
+
+/**
+ * The board draws its own full-width heading, so the page gets a class that
+ * lets board.css hide the theme's title.
+ */
+function inspiration_board_body_class( $classes ) {
+	if ( inspiration_board_is_board_page() ) {
+		$classes[] = 'inspiration-board-page';
+	}
+	return $classes;
+}
+
+function inspiration_board_is_pin( $post_id ) {
+	return (bool) get_post_meta( $post_id, INSPIRATION_BOARD_META_IMAGE, true );
+}
+
+function inspiration_board_shortcode( $atts ) {
+	$atts = shortcode_atts(
+		array(
+			'columns'  => 4,
+			'per_page' => 60,
+		),
+		$atts,
+		'inspiration_board'
+	);
+
+	$category_id = inspiration_board_ensure_category();
+	if ( ! $category_id ) {
+		return '';
+	}
+
+	wp_enqueue_style( 'inspiration-board' );
+	wp_enqueue_script( 'inspiration-board' );
+
+	$paged = max( 1, (int) get_query_var( 'paged' ), (int) get_query_var( 'page' ) );
+
+	$query = new WP_Query(
+		array(
+			'post_type'           => 'post',
+			'post_status'         => 'publish',
+			'cat'                 => $category_id,
+			'posts_per_page'      => max( 1, (int) $atts['per_page'] ),
+			'paged'               => $paged,
+			'orderby'             => array(
+				'date' => 'DESC',
+				'ID'   => 'DESC',
+			),
+			'meta_query'          => array(
+				array(
+					'key'     => '_thumbnail_id',
+					'compare' => 'EXISTS',
+				),
+			),
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => false,
+		)
+	);
+
+	if ( ! $query->have_posts() ) {
+		return '<p class="inspiration-board-empty">' . esc_html__( 'Nothing on the board yet.', 'inspiration-board' ) . '</p>';
+	}
+
+	$columns = min( 8, max( 1, (int) $atts['columns'] ) );
+
+	$heading = inspiration_board_is_board_page() ? get_the_title( get_queried_object_id() ) : __( 'Inspiration', 'inspiration-board' );
+	$total   = (int) $query->found_posts;
+
+	ob_start();
+	?>
+	<div class="inspiration-board-wrap">
+	<header class="inspiration-board__header">
+		<h1 class="inspiration-board__title">
+			<a class="inspiration-board__crumb" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a>
+			<span class="inspiration-board__slash" aria-hidden="true">/</span>
+			<span><?php echo esc_html( $heading ); ?></span>
+		</h1>
+		<p class="inspiration-board__count">
+			<?php
+			/* translators: %s: number of images */
+			echo esc_html( sprintf( _n( '%s block', '%s blocks', $total, 'inspiration-board' ), number_format_i18n( $total ) ) );
+			?>
+		</p>
+	</header>
+	<div class="inspiration-board" style="--ib-columns: <?php echo (int) $columns; ?>">
+		<?php
+		while ( $query->have_posts() ) :
+			$query->the_post();
+			?>
+			<a class="inspiration-board__pin" href="<?php the_permalink(); ?>">
+				<span class="inspiration-board__tile">
+				<?php
+				echo wp_get_attachment_image(
+					get_post_thumbnail_id(),
+					'medium_large',
+					false,
+					array(
+						'class'   => 'inspiration-board__img',
+						'loading' => 'lazy',
+						'sizes'   => '(max-width: 600px) 50vw, (max-width: 1000px) 33vw, 320px',
+					)
+				);
+				?>
+				</span>
+				<span class="inspiration-board__caption"><?php the_title(); ?></span>
+			</a>
+		<?php endwhile; ?>
+	</div>
+	<?php
+	if ( $query->max_num_pages > 1 ) {
+		echo '<nav class="inspiration-board__pagination">';
+		echo paginate_links( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			array(
+				'base'    => str_replace( 999999999, '%#%', esc_url( get_pagenum_link( 999999999 ) ) ),
+				'format'  => '',
+				'current' => $paged,
+				'total'   => $query->max_num_pages,
+			)
+		);
+		echo '</nav>';
+	}
+	echo '</div>';
+
+	wp_reset_postdata();
+
+	return ob_get_clean();
+}

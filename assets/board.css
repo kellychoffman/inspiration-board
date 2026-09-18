@@ -1,0 +1,192 @@
+/*
+ * Are.na-style board: a quiet grid of square tiles, images contained (never
+ * cropped) inside each tile, small grey captions underneath.
+ */
+.inspiration-board-wrap {
+	--ib-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	--ib-ink: #000;
+	--ib-muted: #696969;
+	--ib-line: #e0e0e0;
+	--ib-width: min(1280px, calc(100vw - 64px));
+
+	/* Break out of the theme's content column, centered on the viewport. */
+	box-sizing: border-box;
+	/* board.js sets --ib-fit-* to fit the theme's main column. */
+	width: var(--ib-fit-width, var(--ib-width));
+	max-width: none !important;
+	/* !important beats block themes' constrained-layout auto margins. */
+	margin-left: var(--ib-fit-margin, calc(50% - var(--ib-width) / 2)) !important;
+	margin-right: 0 !important;
+
+	font-family: var(--ib-font);
+	color: var(--ib-ink);
+}
+
+@media (max-width: 600px) {
+	.inspiration-board-wrap {
+		--ib-width: calc(100vw - 32px);
+	}
+}
+
+/* The board draws its own heading, so drop the theme's page title. */
+.inspiration-board-page .wp-block-post-title,
+.inspiration-board-page .entry-title,
+.inspiration-board-page .page-title {
+	display: none;
+}
+
+.inspiration-board__header {
+	margin: 0 0 56px;
+}
+
+.inspiration-board .inspiration-board__title,
+.inspiration-board-wrap .inspiration-board__title {
+	margin: 0;
+	font-family: var(--ib-font);
+	font-size: 28px;
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: normal;
+	color: var(--ib-ink);
+}
+
+.inspiration-board__crumb,
+.inspiration-board__slash {
+	color: var(--ib-muted);
+	text-decoration: none;
+}
+
+.inspiration-board__crumb:hover {
+	color: var(--ib-ink);
+}
+
+.inspiration-board__slash {
+	margin: 0 0.25em;
+	font-weight: 400;
+}
+
+.inspiration-board-wrap .inspiration-board__count {
+	margin: 8px 0 0;
+	font-size: 12.5px;
+	color: var(--ib-muted);
+}
+
+.inspiration-board {
+	display: grid;
+	grid-template-columns: repeat(var(--ib-columns, 4), minmax(0, 1fr));
+	column-gap: 16px;
+	row-gap: 40px;
+}
+
+@media (max-width: 1000px) {
+	.inspiration-board {
+		grid-template-columns: repeat(min(var(--ib-columns, 4), 3), minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 600px) {
+	.inspiration-board {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 28px;
+	}
+
+	.inspiration-board-wrap .inspiration-board__title {
+		font-size: 22px;
+	}
+}
+
+.inspiration-board__pin {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	color: var(--ib-muted);
+	text-decoration: none;
+}
+
+.inspiration-board__tile {
+	position: relative;
+	display: block;
+	aspect-ratio: 1 / 1;
+	overflow: hidden;
+	border: 1px solid transparent;
+	transition: border-color 0.15s ease;
+}
+
+.inspiration-board .inspiration-board__img {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	margin: 0;
+	border-radius: 0;
+	object-fit: contain;
+}
+
+.inspiration-board__caption {
+	font-size: 12.5px;
+	line-height: 1.35;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	padding: 0 8px;
+	transition: color 0.15s ease;
+}
+
+.inspiration-board__pin:hover .inspiration-board__tile,
+.inspiration-board__pin:focus-visible .inspiration-board__tile {
+	border-color: var(--ib-line);
+}
+
+.inspiration-board__pin:hover .inspiration-board__caption,
+.inspiration-board__pin:focus-visible .inspiration-board__caption {
+	color: var(--ib-ink);
+}
+
+.inspiration-board__pin:focus-visible {
+	outline: none;
+}
+
+.inspiration-board__pin:focus-visible .inspiration-board__tile {
+	border-color: var(--ib-ink);
+}
+
+.inspiration-board__pagination {
+	margin-top: 48px;
+	text-align: center;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 13px;
+}
+
+.inspiration-board__pagination .page-numbers {
+	padding: 4px 8px;
+	color: #696969;
+	text-decoration: none;
+}
+
+.inspiration-board__pagination .page-numbers.current {
+	color: #000;
+	font-weight: 700;
+}
+
+.inspiration-board-empty {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	color: #696969;
+}
+
+/* Single pin page */
+.inspiration-board-source {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 13px;
+}
+
+.inspiration-board-source a {
+	color: #696969;
+}
+
+.inspiration-board-source a:hover {
+	color: #000;
+}
