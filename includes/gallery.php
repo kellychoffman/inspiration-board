@@ -62,8 +62,13 @@ function inspiration_board_register_styles() {
 	);
 
 	// Enqueue early on the board page so the theme's title is hidden before paint.
-	if ( inspiration_board_is_board_page() || ( is_singular( 'post' ) && inspiration_board_is_pin( get_queried_object_id() ) ) ) {
+	$is_pin = is_singular( 'post' ) && inspiration_board_is_pin( get_queried_object_id() );
+	if ( inspiration_board_is_board_page() || $is_pin ) {
 		wp_enqueue_style( 'inspiration-board' );
+	}
+	// A pin's own page starts its video playing (muted, with controls).
+	if ( $is_pin ) {
+		wp_enqueue_script( 'inspiration-board' );
 	}
 }
 

@@ -82,7 +82,22 @@
 		} );
 	}
 
+	// A pin's own page: start its video muted, so clicking a tile always
+	// leads to something moving. Controls are there to unmute.
+	function playPinVideo() {
+		var video = document.querySelector( '.inspiration-board-video video' );
+		if ( ! video || video.autoplay ) {
+			return;
+		}
+		video.muted = true;
+		var playing = video.play();
+		if ( playing && playing.catch ) {
+			playing.catch( function () {} );
+		}
+	}
+
 	fit();
+	playPinVideo();
 	playVisibleGifs();
 	window.addEventListener( 'resize', fit );
 	window.addEventListener( 'load', fit );
