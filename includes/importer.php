@@ -11,6 +11,8 @@ defined( 'ABSPATH' ) || exit;
 
 const INSPIRATION_BOARD_META_IMAGE  = '_inspiration_board_image';
 const INSPIRATION_BOARD_META_SOURCE = '_inspiration_board_source';
+const INSPIRATION_BOARD_META_ORDER  = '_inspiration_board_order';
+const INSPIRATION_BOARD_META_DATE   = '_inspiration_board_tweet_date';
 
 add_action( 'rest_api_init', 'inspiration_board_register_routes' );
 
@@ -42,13 +44,14 @@ function inspiration_board_register_routes() {
  * REST handler: imports a small batch of tweets and reports what happened.
  *
  * Tweets must arrive in bookmark order, newest first, across all batches.
- * The cursor is a GMT timestamp that walks down the list: an image already
- * on the board moves the cursor to that post's date, and each new image is
- * dated one second below the cursor. That slots new pins into the right
- * place on the board (which sorts by date), whether they are newer than
- * everything so far, older bookmarks being filled in later, or missed ones
- * that belong between existing pins (existing pins shift down to make
- * room). The client passes the returned cursor into the next batch.
+ * Each pin's post date is its tweet's date; its place on the board is a
+ * separate sort value (META_ORDER). The cursor walks down the list: a pin
+ * already on the board moves the cursor to its sort value, and each new pin
+ * gets a sort value one below the cursor. That slots new pins into the right
+ * place whether they are newer than everything so far, older bookmarks being
+ * filled in later, or missed ones that belong between existing pins
+ * (existing pins shift down to make room). The client passes the returned
+ * cursor into the next batch.
  */
 function inspiration_board_rest_import( WP_REST_Request $request ) {
 	inspiration_board_quiet_publishing();
@@ -71,14 +74,14 @@ function inspiration_board_rest_import( WP_REST_Request $request ) {
 		foreach ( $tweet['images'] as $image_url ) {
 			$existing = inspiration_board_find_pin( $image_url );
 			if ( $existing ) {
-				$time = (int) get_post_time( 'U', true, $existing );
-				if ( $time < $cursor ) {
-					$cursor = $time;
+				$order = (int) get_post_meta( $existing, INSPIRATION_BOARD_META_ORDER, true );
+				if ( $order && $order < $cursor ) {
+					$cursor = $order;
 				} else {
 					// No room above this pin for what was just added: move it
-					// down a second. Repeats down the list only as far as needed.
+					// down one. Repeats down the list only as far as needed.
 					$cursor--;
-					inspiration_board_set_date( $existing, $cursor );
+					update_post_meta( $existing, INSPIRATION_BOARD_META_ORDER, $cursor );
 				}
 				$results['skipped']++;
 				continue;
@@ -191,21 +194,6 @@ function inspiration_board_image_key( $image_url ) {
 }
 
 /**
- * Re-dates a pin (only used to make room when inserting between pins).
- */
-function inspiration_board_set_date( $post_id, $timestamp ) {
-	$date_gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
-	wp_update_post(
-		array(
-			'ID'            => $post_id,
-			'post_date'     => get_date_from_gmt( $date_gmt ),
-			'post_date_gmt' => $date_gmt,
-			'edit_date'     => true,
-		)
-	);
-}
-
-/**
  * The pin already imported for an image, if any.
  *
  * @return int Post ID, or 0.
@@ -225,14 +213,16 @@ function inspiration_board_find_pin( $image_url ) {
 }
 
 /**
- * Creates one untitled Inspiration post for one image, dated $timestamp.
+ * Creates one untitled Inspiration post for one image, dated like its tweet
+ * and placed on the board at sort value $order.
  *
  * @return int|WP_Error Post ID or an error.
  */
-function inspiration_board_import_image( array $tweet, $image_url, $timestamp ) {
-	$key      = inspiration_board_image_key( $image_url );
-	$date_gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
-	$date     = get_date_from_gmt( $date_gmt );
+function inspiration_board_import_image( array $tweet, $image_url, $order ) {
+	$key       = inspiration_board_image_key( $image_url );
+	$tweeted   = $tweet['date'] ? strtotime( $tweet['date'] ) : false;
+	$date_gmt  = gmdate( 'Y-m-d H:i:s', ( $tweeted && $tweeted <= time() ) ? $tweeted : time() );
+	$date      = get_date_from_gmt( $date_gmt );
 
 	$category_id = inspiration_board_ensure_category();
 
@@ -264,8 +254,9 @@ function inspiration_board_import_image( array $tweet, $image_url, $timestamp ) 
 
 	update_post_meta( $post_id, INSPIRATION_BOARD_META_IMAGE, $key );
 	update_post_meta( $post_id, INSPIRATION_BOARD_META_SOURCE, $tweet['url'] );
+	update_post_meta( $post_id, INSPIRATION_BOARD_META_ORDER, (int) $order );
 	if ( $tweet['date'] ) {
-		update_post_meta( $post_id, '_inspiration_board_tweet_date', $tweet['date'] );
+		update_post_meta( $post_id, INSPIRATION_BOARD_META_DATE, $tweet['date'] );
 	}
 
 	// Jetpack / WordPress.com: never email subscribers or auto-share pins.

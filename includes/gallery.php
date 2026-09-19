@@ -104,27 +104,44 @@ function inspiration_board_shortcode( $atts ) {
 
 	$paged = max( 1, (int) get_query_var( 'paged' ), (int) get_query_var( 'page' ) );
 
-	$query = new WP_Query(
-		array(
-			'post_type'           => 'post',
-			'post_status'         => 'publish',
-			'cat'                 => $category_id,
-			'posts_per_page'      => max( 1, (int) $atts['per_page'] ),
-			'paged'               => $paged,
-			'orderby'             => array(
-				'date' => 'DESC',
-				'ID'   => 'DESC',
+	$args = array(
+		'post_type'           => 'post',
+		'post_status'         => 'publish',
+		'cat'                 => $category_id,
+		'posts_per_page'      => max( 1, (int) $atts['per_page'] ),
+		'paged'               => $paged,
+		// Bookmark order (see importer), not post date: post dates are
+		// the tweets' own dates.
+		'meta_query'          => array(
+			'relation' => 'AND',
+			'order'    => array(
+				'key'  => INSPIRATION_BOARD_META_ORDER,
+				'type' => 'NUMERIC',
 			),
-			'meta_query'          => array(
-				array(
-					'key'     => '_thumbnail_id',
-					'compare' => 'EXISTS',
-				),
+			array(
+				'key'     => '_thumbnail_id',
+				'compare' => 'EXISTS',
 			),
-			'ignore_sticky_posts' => true,
-			'no_found_rows'       => false,
-		)
+		),
+		'orderby'             => array(
+			'order' => 'DESC',
+			'ID'    => 'DESC',
+		),
+		'ignore_sticky_posts' => true,
+		'no_found_rows'       => false,
 	);
+
+	// Until the one-time upgrade has run, pins have no sort value yet: fall
+	// back to the old date order so the board never shows up empty.
+	if ( (int) get_option( INSPIRATION_BOARD_OPTION_SCHEMA ) < INSPIRATION_BOARD_SCHEMA ) {
+		unset( $args['meta_query']['order'] );
+		$args['orderby'] = array(
+			'date' => 'DESC',
+			'ID'   => 'DESC',
+		);
+	}
+
+	$query = new WP_Query( $args );
 
 	if ( ! $query->have_posts() ) {
 		return '<p class="inspiration-board-empty">' . esc_html__( 'Nothing on the board yet.', 'inspiration-board' ) . '</p>';
@@ -133,23 +150,12 @@ function inspiration_board_shortcode( $atts ) {
 	$columns = min( 8, max( 1, (int) $atts['columns'] ) );
 
 	$heading = inspiration_board_is_board_page() ? get_the_title( get_queried_object_id() ) : __( 'Inspiration', 'inspiration-board' );
-	$total   = (int) $query->found_posts;
 
 	ob_start();
 	?>
 	<div class="inspiration-board-wrap">
 	<header class="inspiration-board__header">
-		<h1 class="inspiration-board__title">
-			<a class="inspiration-board__crumb" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a>
-			<span class="inspiration-board__slash" aria-hidden="true">/</span>
-			<span><?php echo esc_html( $heading ); ?></span>
-		</h1>
-		<p class="inspiration-board__count">
-			<?php
-			/* translators: %s: number of images */
-			echo esc_html( sprintf( _n( '%s block', '%s blocks', $total, 'inspiration-board' ), number_format_i18n( $total ) ) );
-			?>
-		</p>
+		<h1 class="inspiration-board__title"><?php echo esc_html( $heading ); ?></h1>
 	</header>
 	<div class="inspiration-board" style="--ib-columns: <?php echo (int) $columns; ?>">
 		<?php
