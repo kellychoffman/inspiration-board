@@ -33,9 +33,9 @@
 		if ( ! Array.isArray( tweets ) || ! tweets.length ) {
 			throw new Error( 'No tweets found in that file.' );
 		}
-		// Bookmarks arrive newest first. Import oldest first so the newest
-		// bookmark ends up as the newest post, at the top of the board.
-		return tweets.slice().reverse();
+		// Keep the file's order (newest bookmark first): the importer uses it
+		// to slot each new pin into the right place on the board.
+		return tweets;
 	};
 
 	const setStatus = ( text ) => ( $( 'ib-status' ).textContent = text );
@@ -61,6 +61,7 @@
 
 		button.disabled = true;
 		const totals = { created: 0, skipped: 0, errors: 0 };
+		let cursor = 0;
 		$( 'ib-bar' ).max = tweets.length;
 
 		for ( let i = 0; i < tweets.length; i += BATCH_SIZE ) {
@@ -70,8 +71,9 @@
 				const result = await wp.apiFetch( {
 					path: '/inspiration-board/v1/import',
 					method: 'POST',
-					data: { tweets: batch },
+					data: { tweets: batch, cursor },
 				} );
+				cursor = result.cursor;
 				totals.created += result.created;
 				totals.skipped += result.skipped;
 				totals.errors += result.errors.length;

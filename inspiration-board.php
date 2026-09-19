@@ -3,7 +3,7 @@
  * Plugin Name:       Inspiration Board
  * Plugin URI:        https://github.com/kellychoffman/inspiration-board
  * Description:       A Pinterest-style board built from your bookmarked tweets. Imports tweet images as posts in an "Inspiration" category and shows them as a gallery with the [inspiration_board] shortcode.
- * Version:           0.6.0
+ * Version:           0.7.2
  * Requires at least: 6.4
  * Requires PHP:      7.4
  * Author:            kellychoffman
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'INSPIRATION_BOARD_VERSION', '0.6.0' );
+define( 'INSPIRATION_BOARD_VERSION', '0.7.2' );
 define( 'INSPIRATION_BOARD_FILE', __FILE__ );
 define( 'INSPIRATION_BOARD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'INSPIRATION_BOARD_URL', plugin_dir_url( __FILE__ ) );

@@ -18,6 +18,12 @@
 			var left = Math.max( areaRect.left + parseFloat( areaStyle.paddingLeft ), gutter );
 			var right = Math.min( areaRect.right - parseFloat( areaStyle.paddingRight ), viewport - gutter );
 			var width = Math.min( MAX, right - left );
+			if ( ! ( width > 0 ) ) {
+				// Hidden or zero-width window: leave the CSS fallback in charge.
+				wrap.style.removeProperty( '--ib-fit-width' );
+				wrap.style.removeProperty( '--ib-fit-margin' );
+				return;
+			}
 			var target = left + ( right - left - width ) / 2;
 
 			var parent = wrap.parentElement;

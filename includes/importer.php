@@ -29,6 +29,10 @@ function inspiration_board_register_routes() {
 					'type'     => 'array',
 					'required' => true,
 				),
+				'cursor' => array(
+					'type'     => 'integer',
+					'required' => false,
+				),
 			),
 		)
 	);
@@ -36,10 +40,21 @@ function inspiration_board_register_routes() {
 
 /**
  * REST handler: imports a small batch of tweets and reports what happened.
+ *
+ * Tweets must arrive in bookmark order, newest first, across all batches.
+ * The cursor is a GMT timestamp that walks down the list: an image already
+ * on the board moves the cursor to that post's date, and each new image is
+ * dated one second below the cursor. That slots new pins into the right
+ * place on the board (which sorts by date), whether they are newer than
+ * everything so far, older bookmarks being filled in later, or missed ones
+ * that belong between existing pins (existing pins shift down to make
+ * room). The client passes the returned cursor into the next batch.
  */
 function inspiration_board_rest_import( WP_REST_Request $request ) {
 	inspiration_board_quiet_publishing();
 
+	$cursor  = (int) $request->get_param( 'cursor' );
+	$cursor  = ( $cursor > 0 && $cursor <= time() ) ? $cursor : time();
 	$results = array(
 		'created' => 0,
 		'skipped' => 0,
@@ -53,21 +68,34 @@ function inspiration_board_rest_import( WP_REST_Request $request ) {
 			continue;
 		}
 
-		// Last image first, so the board (newest first) shows a tweet's
-		// images in their original 1, 2, 3 order.
-		$total = count( $tweet['images'] );
-		foreach ( array_reverse( $tweet['images'], true ) as $index => $image_url ) {
-			$outcome = inspiration_board_import_image( $tweet, $image_url, $index, $total );
+		foreach ( $tweet['images'] as $image_url ) {
+			$existing = inspiration_board_find_pin( $image_url );
+			if ( $existing ) {
+				$time = (int) get_post_time( 'U', true, $existing );
+				if ( $time < $cursor ) {
+					$cursor = $time;
+				} else {
+					// No room above this pin for what was just added: move it
+					// down a second. Repeats down the list only as far as needed.
+					$cursor--;
+					inspiration_board_set_date( $existing, $cursor );
+				}
+				$results['skipped']++;
+				continue;
+			}
+
+			$cursor--;
+			$outcome = inspiration_board_import_image( $tweet, $image_url, $cursor );
 
 			if ( is_wp_error( $outcome ) ) {
 				$results['errors'][] = sprintf( '%s: %s', $tweet['url'], $outcome->get_error_message() );
-			} elseif ( 'skipped' === $outcome ) {
-				$results['skipped']++;
 			} else {
 				$results['created']++;
 			}
 		}
 	}
+
+	$results['cursor'] = $cursor;
 
 	return rest_ensure_response( $results );
 }
@@ -163,26 +191,48 @@ function inspiration_board_image_key( $image_url ) {
 }
 
 /**
- * Creates one Inspiration post for one image.
- *
- * @return int|string|WP_Error Post ID, 'skipped' if it already exists, or an error.
+ * Re-dates a pin (only used to make room when inserting between pins).
  */
-function inspiration_board_import_image( array $tweet, $image_url, $index, $total ) {
-	$key = inspiration_board_image_key( $image_url );
+function inspiration_board_set_date( $post_id, $timestamp ) {
+	$date_gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
+	wp_update_post(
+		array(
+			'ID'            => $post_id,
+			'post_date'     => get_date_from_gmt( $date_gmt ),
+			'post_date_gmt' => $date_gmt,
+			'edit_date'     => true,
+		)
+	);
+}
 
+/**
+ * The pin already imported for an image, if any.
+ *
+ * @return int Post ID, or 0.
+ */
+function inspiration_board_find_pin( $image_url ) {
 	$existing = get_posts(
 		array(
 			'post_type'      => 'post',
 			'post_status'    => 'any',
 			'meta_key'       => INSPIRATION_BOARD_META_IMAGE,
-			'meta_value'     => $key,
+			'meta_value'     => inspiration_board_image_key( $image_url ),
 			'fields'         => 'ids',
 			'posts_per_page' => 1,
 		)
 	);
-	if ( $existing ) {
-		return 'skipped';
-	}
+	return $existing ? (int) $existing[0] : 0;
+}
+
+/**
+ * Creates one untitled Inspiration post for one image, dated $timestamp.
+ *
+ * @return int|WP_Error Post ID or an error.
+ */
+function inspiration_board_import_image( array $tweet, $image_url, $timestamp ) {
+	$key      = inspiration_board_image_key( $image_url );
+	$date_gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
+	$date     = get_date_from_gmt( $date_gmt );
 
 	$category_id = inspiration_board_ensure_category();
 
@@ -190,8 +240,11 @@ function inspiration_board_import_image( array $tweet, $image_url, $index, $tota
 	// the post is ever published.
 	$post_id = wp_insert_post(
 		array(
-			'post_title'    => inspiration_board_build_title( $tweet, $index, $total ),
+			'post_title'    => '',
+			'post_content'  => inspiration_board_build_content( $tweet ),
 			'post_status'   => 'draft',
+			'post_date'     => $date,
+			'post_date_gmt' => $date_gmt,
 			'post_type'     => 'post',
 			'post_category' => $category_id ? array( $category_id ) : array(),
 		),
@@ -221,25 +274,15 @@ function inspiration_board_import_image( array $tweet, $image_url, $index, $tota
 
 	wp_update_post(
 		array(
-			'ID'           => $post_id,
-			'post_status'  => 'publish',
-			'post_content' => inspiration_board_build_content( $tweet ),
+			'ID'            => $post_id,
+			'post_status'   => 'publish',
+			'post_date'     => $date,
+			'post_date_gmt' => $date_gmt,
+			'edit_date'     => true,
 		)
 	);
 
 	return $post_id;
-}
-
-function inspiration_board_build_title( array $tweet, $index, $total ) {
-	$who   = $tweet['handle'] ? '@' . $tweet['handle'] : __( 'X', 'inspiration-board' );
-	$text  = trim( preg_replace( '#https?://\S+#', '', $tweet['text'] ) );
-	$title = $text ? wp_trim_words( $text, 10, '…' ) : sprintf( __( 'Image from %s', 'inspiration-board' ), $who );
-
-	if ( $total > 1 ) {
-		$title .= sprintf( ' (%d/%d)', $index + 1, $total );
-	}
-
-	return $title;
 }
 
 /**

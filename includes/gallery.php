@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 add_shortcode( 'inspiration_board', 'inspiration_board_shortcode' );
 add_action( 'wp_enqueue_scripts', 'inspiration_board_register_styles' );
 add_filter( 'body_class', 'inspiration_board_body_class' );
+add_filter( 'document_title_parts', 'inspiration_board_document_title' );
 
 function inspiration_board_register_styles() {
 	wp_register_style(
@@ -55,6 +56,32 @@ function inspiration_board_body_class( $classes ) {
 
 function inspiration_board_is_pin( $post_id ) {
 	return (bool) get_post_meta( $post_id, INSPIRATION_BOARD_META_IMAGE, true );
+}
+
+/**
+ * Caption for a pin: its title if it has one, otherwise the source's @handle.
+ */
+function inspiration_board_caption( $post_id ) {
+	$title = get_the_title( $post_id );
+	if ( '' !== trim( $title ) ) {
+		return $title;
+	}
+	$source = (string) get_post_meta( $post_id, INSPIRATION_BOARD_META_SOURCE, true );
+	if ( preg_match( '#^https://(?:x|twitter)\.com/([A-Za-z0-9_]+)/status/#', $source, $m ) ) {
+		return '@' . $m[1];
+	}
+	return '';
+}
+
+/**
+ * Untitled pins would otherwise get an empty browser tab title.
+ */
+function inspiration_board_document_title( $parts ) {
+	if ( is_singular( 'post' ) && inspiration_board_is_pin( get_queried_object_id() ) && '' === trim( (string) ( $parts['title'] ?? '' ) ) ) {
+		$term           = get_term( inspiration_board_ensure_category(), 'category' );
+		$parts['title'] = ( $term && ! is_wp_error( $term ) ) ? $term->name : __( 'Inspiration', 'inspiration-board' );
+	}
+	return $parts;
 }
 
 function inspiration_board_shortcode( $atts ) {
@@ -144,7 +171,7 @@ function inspiration_board_shortcode( $atts ) {
 				);
 				?>
 				</span>
-				<span class="inspiration-board__caption"><?php the_title(); ?></span>
+				<span class="inspiration-board__caption"><?php echo esc_html( inspiration_board_caption( get_the_ID() ) ); ?></span>
 			</a>
 		<?php endwhile; ?>
 	</div>
