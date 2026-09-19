@@ -129,6 +129,37 @@
 	border-color: var(--ib-ink);
 }
 
+.inspiration-board .inspiration-board__video {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	background: transparent;
+}
+
+/* Videos can't be saved from X, so their tile is the still frame. */
+.inspiration-board__tile--video::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 0;
+	height: 0;
+	transform: translate(-40%, -50%);
+	border-style: solid;
+	border-width: 9px 0 9px 15px;
+	border-color: transparent transparent transparent #fff;
+	filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.55));
+	pointer-events: none;
+}
+
+/* Single pin page */
+.inspiration-board-gif video {
+	width: 100%;
+	height: auto;
+}
+
 .inspiration-board__pagination {
 	margin-top: 48px;
 	text-align: center;

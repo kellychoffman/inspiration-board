@@ -6,7 +6,7 @@
 defined( 'ABSPATH' ) || exit;
 
 const INSPIRATION_BOARD_OPTION_SCHEMA = 'inspiration_board_schema';
-const INSPIRATION_BOARD_SCHEMA        = 2;
+const INSPIRATION_BOARD_SCHEMA        = 3;
 
 add_action( 'admin_init', 'inspiration_board_maybe_upgrade' );
 add_action( 'rest_api_init', 'inspiration_board_maybe_upgrade' );
@@ -28,7 +28,11 @@ function inspiration_board_maybe_upgrade() {
 		update_option( $lock, time(), false );
 	}
 
-	inspiration_board_upgrade_to_tweet_dates();
+	if ( (int) get_option( INSPIRATION_BOARD_OPTION_SCHEMA ) < 2 ) {
+		inspiration_board_upgrade_to_tweet_dates();
+	}
+	inspiration_board_upgrade_media_into_content();
+	update_option( INSPIRATION_BOARD_OPTION_SCHEMA, INSPIRATION_BOARD_SCHEMA );
 
 	delete_option( $lock );
 }
@@ -53,10 +57,10 @@ function inspiration_board_upgrade_to_tweet_dates() {
 	}
 	inspiration_board_make_orders_strict( $converted );
 
-	// The board now reads sort values, so mark the upgrade done before the
-	// slow part: re-dating can't disturb the order any more, and a request
-	// that times out below never causes pass 1 to run again.
-	update_option( INSPIRATION_BOARD_OPTION_SCHEMA, INSPIRATION_BOARD_SCHEMA );
+	// The board now reads sort values, so record that much before the slow
+	// part: re-dating can't disturb the order any more, and a request that
+	// times out below never causes pass 1 to run again.
+	update_option( INSPIRATION_BOARD_OPTION_SCHEMA, 2 );
 
 	// Pass 2 (slow): tweet dates and numeric slugs, skipping pins already done.
 	foreach ( $pins as $pin ) {
@@ -121,5 +125,33 @@ function inspiration_board_make_orders_strict( array $pins ) {
 			update_post_meta( $pin->ID, INSPIRATION_BOARD_META_ORDER, $order );
 		}
 		$previous = $order;
+	}
+}
+
+/**
+ * Schema 3: pins used to show their image through the theme's featured
+ * image, which is now hidden in favour of the media sitting in the post
+ * itself. Older pins get their image put into their content.
+ */
+function inspiration_board_upgrade_media_into_content() {
+	foreach ( inspiration_board_all_pins() as $pin ) {
+		if ( false !== strpos( $pin->post_content, '<!-- wp:image' ) || false !== strpos( $pin->post_content, '<!-- wp:video' ) ) {
+			continue;
+		}
+		$attachment_id = (int) get_post_thumbnail_id( $pin );
+		if ( ! $attachment_id ) {
+			continue;
+		}
+		$alt     = (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+		$image   = '<!-- wp:image {"id":' . $attachment_id . ',"sizeSlug":"large","linkDestination":"none"} -->' . "\n";
+		$image  .= '<figure class="wp-block-image size-large"><img src="' . esc_url( wp_get_attachment_image_url( $attachment_id, 'large' ) ) . '" alt="' . esc_attr( $alt ) . '" class="wp-image-' . $attachment_id . '"/></figure>' . "\n";
+		$image  .= "<!-- /wp:image -->\n\n";
+
+		wp_update_post(
+			array(
+				'ID'           => $pin->ID,
+				'post_content' => $image . $pin->post_content,
+			)
+		);
 	}
 }

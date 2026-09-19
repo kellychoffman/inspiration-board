@@ -35,7 +35,38 @@
 		} );
 	}
 
+	// GIF tiles: load and play only while they're near the viewport.
+	function playVisibleGifs() {
+		var videos = document.querySelectorAll( '.inspiration-board__video[data-src]' );
+		if ( ! videos.length || ! ( 'IntersectionObserver' in window ) ) {
+			return;
+		}
+		var observer = new IntersectionObserver(
+			function ( entries ) {
+				entries.forEach( function ( entry ) {
+					var video = entry.target;
+					if ( entry.isIntersecting ) {
+						if ( ! video.src ) {
+							video.src = video.dataset.src;
+						}
+						var playing = video.play();
+						if ( playing && playing.catch ) {
+							playing.catch( function () {} );
+						}
+					} else {
+						video.pause();
+					}
+				} );
+			},
+			{ rootMargin: '200px' }
+		);
+		videos.forEach( function ( video ) {
+			observer.observe( video );
+		} );
+	}
+
 	fit();
+	playVisibleGifs();
 	window.addEventListener( 'resize', fit );
 	window.addEventListener( 'load', fit );
 } )();

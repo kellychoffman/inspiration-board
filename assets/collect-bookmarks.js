@@ -3,7 +3,7 @@
  *
  * Paste this into the browser console on https://x.com/i/bookmarks (or any
  * X page that lists tweets, like /i/history or a profile). It scrolls to the
- * end of the list, collects every tweet that has photos, and downloads
+ * end of the list, collects every tweet with a photo, GIF or video, and downloads
  * inspiration-bookmarks.json for the WordPress importer, in list order.
  * Keep the window visible while it runs: X stops loading when it's hidden.
  * Nothing is sent anywhere; it only reads the page you are looking at.
@@ -17,7 +17,7 @@
 		return;
 	}
 
-	// Every tweet seen, photos or not, in list order. Tweets without photos
+	// Every tweet seen, with media or not, in list order. Tweets without media
 	// aren't exported but still help place their neighbours correctly.
 	const order = [];
 	const tweets = new Map();
@@ -28,6 +28,34 @@
 		const row = article.closest( '[data-testid="cellInnerDiv"]' );
 		const match = row && row.style.transform.match( /translateY\(([-\d.]+)px\)/ );
 		return match ? parseFloat( match[ 1 ] ) : null;
+	};
+
+	// X serves photos as images, GIFs as silent looping mp4s, and videos as
+	// streams we can't save. Each is recognisable from its URLs.
+	const readMedia = ( article ) => {
+		const media = [];
+		article.querySelectorAll( '[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="videoComponent"]' ).forEach( ( holder ) => {
+			const video = holder.querySelector( 'video' );
+			if ( video ) {
+				const poster = video.getAttribute( 'poster' ) || '';
+				const src = video.getAttribute( 'src' ) || '';
+				if ( ! poster.includes( 'pbs.twimg.com/' ) ) {
+					return;
+				}
+				if ( src.includes( 'video.twimg.com/tweet_video/' ) || poster.includes( '/tweet_video_thumb/' ) ) {
+					media.push( { type: 'gif', url: src, poster } );
+				} else {
+					media.push( { type: 'video', url: '', poster } );
+				}
+				return;
+			}
+			holder.querySelectorAll( 'img' ).forEach( ( img ) => {
+				if ( img.src.includes( 'pbs.twimg.com/media/' ) ) {
+					media.push( { type: 'photo', url: img.src, poster: '' } );
+				}
+			} );
+		} );
+		return media;
 	};
 
 	const read = ( article ) => {
@@ -48,18 +76,24 @@
 			name: nameEl ? nameEl.textContent.trim() : '',
 			text: textEl ? textEl.innerText.trim() : '',
 			date: time.getAttribute( 'datetime' ) || '',
-			images: [ ...article.querySelectorAll( '[data-testid="tweetPhoto"] img' ) ]
-				.map( ( img ) => img.src )
-				.filter( ( src ) => src.includes( 'pbs.twimg.com/media/' ) ),
+			media: readMedia( article ),
 		};
 	};
 
+	const mediaKey = ( m ) => ( m.type === 'photo' ? m.url : m.poster ).split( '?' )[ 0 ];
+
 	const remember = ( tweet ) => {
 		const previous = tweets.get( tweet.url );
-		tweets.set( tweet.url, {
-			...tweet,
-			images: [ ...new Set( [ ...( previous ? previous.images : [] ), ...tweet.images ] ) ],
-		} );
+		const media = [ ...( previous ? previous.media : [] ) ];
+		for ( const m of tweet.media ) {
+			const existing = media.find( ( x ) => mediaKey( x ) === mediaKey( m ) );
+			if ( ! existing ) {
+				media.push( m );
+			} else if ( ! existing.url && m.url ) {
+				existing.url = m.url; // A GIF's mp4 shows up once it starts playing.
+			}
+		}
+		tweets.set( tweet.url, { ...tweet, media } );
 	};
 
 	// Reads what's on screen and stitches it into `order`, using tweets
@@ -134,14 +168,14 @@
 		const added = grab();
 		const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
 		idle = added || ! atBottom ? 0 : idle + 1;
-		const withPhotos = order.filter( ( url ) => tweets.get( url ).images.length ).length;
-		console.log( `Inspiration Board: ${ withPhotos } tweets with images so far…` );
+		const withMedia = order.filter( ( url ) => tweets.get( url ).media.length ).length;
+		console.log( `Inspiration Board: ${ withMedia } tweets with photos, GIFs or videos so far…` );
 		window.scrollBy( 0, window.innerHeight * 0.7 );
 		await wait( 1200 );
 	}
 	grab();
 
-	const result = order.map( ( url ) => tweets.get( url ) ).filter( ( t ) => t.images.length );
+	const result = order.map( ( url ) => tweets.get( url ) ).filter( ( t ) => t.media.length );
 	const json = JSON.stringify( { source: 'x-bookmarks', collected: new Date().toISOString(), tweets: result }, null, 2 );
 	window.inspirationBookmarks = result;
 

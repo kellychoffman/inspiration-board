@@ -9,6 +9,19 @@ defined( 'ABSPATH' ) || exit;
 add_shortcode( 'inspiration_board', 'inspiration_board_shortcode' );
 add_action( 'wp_enqueue_scripts', 'inspiration_board_register_styles' );
 add_filter( 'body_class', 'inspiration_board_body_class' );
+add_filter( 'post_thumbnail_html', 'inspiration_board_hide_duplicate_thumbnail', 10, 2 );
+
+/**
+ * A pin's media is in its content, so skip the theme's featured image on the
+ * pin's own page. The featured image still serves the board and sharing
+ * previews, and featured images elsewhere are left alone.
+ */
+function inspiration_board_hide_duplicate_thumbnail( $html, $post_id ) {
+	if ( is_singular() && (int) $post_id === get_queried_object_id() && inspiration_board_is_pin( $post_id ) ) {
+		return '';
+	}
+	return $html;
+}
 add_filter( 'document_title_parts', 'inspiration_board_document_title' );
 add_action( 'init', 'inspiration_board_register_template' );
 
@@ -200,7 +213,8 @@ function inspiration_board_shortcode( $atts ) {
 			$has_alt = '' !== trim( (string) get_post_meta( get_post_thumbnail_id(), '_wp_attachment_image_alt', true ) );
 			?>
 			<a class="inspiration-board__pin" href="<?php the_permalink(); ?>"<?php echo $has_alt ? '' : ' aria-label="' . esc_attr( inspiration_board_caption( get_the_ID() ) ) . '"'; ?>>
-				<span class="inspiration-board__tile">
+				<?php $type = (string) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_TYPE, true ); ?>
+				<span class="inspiration-board__tile inspiration-board__tile--<?php echo esc_attr( $type ? $type : 'photo' ); ?>">
 				<?php
 				echo wp_get_attachment_image(
 					get_post_thumbnail_id(),
@@ -213,6 +227,10 @@ function inspiration_board_shortcode( $atts ) {
 					)
 				);
 				?>
+				<?php if ( 'gif' === $type ) : ?>
+					<?php // Loaded and played by board.js once the tile is near the viewport. ?>
+					<video class="inspiration-board__video" muted loop playsinline preload="none" data-src="<?php echo esc_url( wp_get_attachment_url( (int) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_VIDEO, true ) ) ); ?>"></video>
+				<?php endif; ?>
 				</span>
 			</a>
 		<?php endwhile; ?>
