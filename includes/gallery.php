@@ -106,6 +106,13 @@ function inspiration_board_document_title( $parts ) {
 	return $parts;
 }
 
+/**
+ * Whether the current page uses the plugin's no-sidebar template.
+ */
+function inspiration_board_uses_template() {
+	return is_singular() && INSPIRATION_BOARD_TEMPLATE === get_page_template_slug( get_queried_object_id() );
+}
+
 function inspiration_board_shortcode( $atts ) {
 	$atts = shortcode_atts(
 		array(
@@ -177,6 +184,9 @@ function inspiration_board_shortcode( $atts ) {
 	?>
 	<div class="inspiration-board-wrap">
 	<header class="inspiration-board__header">
+		<?php if ( inspiration_board_uses_template() ) : // The template has no site header, so link home. ?>
+			<a class="inspiration-board__home" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a>
+		<?php endif; ?>
 		<h1 class="inspiration-board__title"><?php echo esc_html( $heading ); ?></h1>
 	</header>
 	<div class="inspiration-board" style="--ib-columns: <?php echo (int) $columns; ?>">
