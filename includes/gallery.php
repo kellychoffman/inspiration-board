@@ -81,7 +81,7 @@ function inspiration_board_is_pin( $post_id ) {
 }
 
 /**
- * Caption for a pin: its title if it has one, otherwise the source's @handle.
+ * Label for a pin: its title if it has one, otherwise the source's @handle.
  */
 function inspiration_board_caption( $post_id ) {
 	$title = get_the_title( $post_id );
@@ -194,7 +194,12 @@ function inspiration_board_shortcode( $atts ) {
 		while ( $query->have_posts() ) :
 			$query->the_post();
 			?>
-			<a class="inspiration-board__pin" href="<?php the_permalink(); ?>">
+			<?php
+			// No visible caption: the image's alt text names the link. Pins
+			// without alt text fall back to the source's @handle.
+			$has_alt = '' !== trim( (string) get_post_meta( get_post_thumbnail_id(), '_wp_attachment_image_alt', true ) );
+			?>
+			<a class="inspiration-board__pin" href="<?php the_permalink(); ?>"<?php echo $has_alt ? '' : ' aria-label="' . esc_attr( inspiration_board_caption( get_the_ID() ) ) . '"'; ?>>
 				<span class="inspiration-board__tile">
 				<?php
 				echo wp_get_attachment_image(
@@ -209,7 +214,6 @@ function inspiration_board_shortcode( $atts ) {
 				);
 				?>
 				</span>
-				<span class="inspiration-board__caption"><?php echo esc_html( inspiration_board_caption( get_the_ID() ) ); ?></span>
 			</a>
 		<?php endwhile; ?>
 	</div>

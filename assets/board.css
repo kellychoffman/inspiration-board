@@ -1,6 +1,6 @@
 /*
  * Are.na-style board: a quiet grid of square tiles, images contained (never
- * cropped) inside each tile, small grey captions underneath.
+ * cropped) inside each tile.
  */
 .inspiration-board-wrap {
 	--ib-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -90,9 +90,7 @@
 }
 
 .inspiration-board__pin {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+	display: block;
 	color: var(--ib-muted);
 	text-decoration: none;
 }
@@ -118,25 +116,9 @@
 	object-fit: contain;
 }
 
-.inspiration-board__caption {
-	font-size: 12.5px;
-	line-height: 1.35;
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	padding: 0 8px;
-	transition: color 0.15s ease;
-}
-
 .inspiration-board__pin:hover .inspiration-board__tile,
 .inspiration-board__pin:focus-visible .inspiration-board__tile {
 	border-color: var(--ib-line);
-}
-
-.inspiration-board__pin:hover .inspiration-board__caption,
-.inspiration-board__pin:focus-visible .inspiration-board__caption {
-	color: var(--ib-ink);
 }
 
 .inspiration-board__pin:focus-visible {
