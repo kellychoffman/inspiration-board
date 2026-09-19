@@ -35,9 +35,24 @@
 		} );
 	}
 
-	// GIF tiles: load and play only while they're near the viewport.
+	// GIF and video tiles: load and play only while they're near the
+	// viewport, and leave the heaviest files, or visitors who asked for less
+	// motion or less data, with the still frame and its play badge.
+	var MAX_AUTOPLAY_BYTES = 15 * 1024 * 1024;
+
+	function autoplayWanted( video ) {
+		var connection = navigator.connection || {};
+		if ( connection.saveData ) {
+			return false;
+		}
+		if ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
+			return false;
+		}
+		return Number( video.dataset.size || 0 ) <= MAX_AUTOPLAY_BYTES;
+	}
+
 	function playVisibleGifs() {
-		var videos = document.querySelectorAll( '.inspiration-board__video[data-src]' );
+		var videos = [].filter.call( document.querySelectorAll( '.inspiration-board__video[data-src]' ), autoplayWanted );
 		if ( ! videos.length || ! ( 'IntersectionObserver' in window ) ) {
 			return;
 		}
@@ -53,6 +68,8 @@
 						if ( playing && playing.catch ) {
 							playing.catch( function () {} );
 						}
+						// Drops the play badge once the tile is moving.
+						video.parentNode.classList.add( 'is-playing' );
 					} else {
 						video.pause();
 					}

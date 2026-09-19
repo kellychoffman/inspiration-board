@@ -138,7 +138,11 @@
 	background: transparent;
 }
 
-/* Videos can't be saved from X, so their tile is the still frame. */
+/* Play badge, until the tile starts playing (or if it never will). */
+.inspiration-board__tile--video.is-playing::after {
+	display: none;
+}
+
 .inspiration-board__tile--video::after {
 	content: "";
 	position: absolute;

@@ -227,9 +227,19 @@ function inspiration_board_shortcode( $atts ) {
 					)
 				);
 				?>
-				<?php if ( 'gif' === $type ) : ?>
-					<?php // Loaded and played by board.js once the tile is near the viewport. ?>
-					<video class="inspiration-board__video" autoplay muted loop playsinline preload="none" data-src="<?php echo esc_url( wp_get_attachment_url( (int) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_VIDEO, true ) ) ); ?>"></video>
+				<?php
+				$video_id = (int) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_VIDEO, true );
+				if ( $video_id ) :
+					// Loaded and played by board.js once the tile is near the
+					// viewport; the file size lets it skip the heaviest ones.
+					$meta = wp_get_attachment_metadata( $video_id );
+					$size = (int) ( $meta['filesize'] ?? 0 );
+					if ( ! $size ) {
+						$file = get_attached_file( $video_id );
+						$size = $file && file_exists( $file ) ? (int) filesize( $file ) : 0;
+					}
+					?>
+					<video class="inspiration-board__video" autoplay muted loop playsinline preload="none" data-size="<?php echo (int) $size; ?>" data-src="<?php echo esc_url( wp_get_attachment_url( $video_id ) ); ?>"></video>
 				<?php endif; ?>
 				</span>
 			</a>
