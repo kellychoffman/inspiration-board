@@ -229,7 +229,7 @@ function inspiration_board_shortcode( $atts ) {
 				?>
 				<?php if ( 'gif' === $type ) : ?>
 					<?php // Loaded and played by board.js once the tile is near the viewport. ?>
-					<video class="inspiration-board__video" muted loop playsinline preload="none" data-src="<?php echo esc_url( wp_get_attachment_url( (int) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_VIDEO, true ) ) ); ?>"></video>
+					<video class="inspiration-board__video" autoplay muted loop playsinline preload="none" data-src="<?php echo esc_url( wp_get_attachment_url( (int) get_post_meta( get_the_ID(), INSPIRATION_BOARD_META_VIDEO, true ) ) ); ?>"></video>
 				<?php endif; ?>
 				</span>
 			</a>

@@ -46,6 +46,42 @@
 		$( 'ib-errors' ).appendChild( li );
 	};
 
+	const backfill = $( 'ib-backfill' );
+	if ( backfill ) {
+		backfill.addEventListener( 'click', async ( event ) => {
+			const button = event.currentTarget;
+			const total = Number( button.dataset.remaining );
+			button.disabled = true;
+			$( 'ib-backfill-progress' ).hidden = false;
+
+			let remaining = total;
+			let failed = 0;
+			while ( remaining > 0 ) {
+				$( 'ib-backfill-status' ).textContent = `Downloading… ${ total - remaining } of ${ total } done.`;
+				let result;
+				try {
+					result = await wp.apiFetch( {
+						path: '/inspiration-board/v1/backfill-videos',
+						method: 'POST',
+						data: { limit: 2 },
+					} );
+				} catch ( e ) {
+					$( 'ib-backfill-status' ).textContent = `Stopped: ${ e.message || 'the request failed' }. Click again to carry on.`;
+					button.disabled = false;
+					return;
+				}
+				failed += result.failed;
+				remaining = result.remaining;
+				$( 'ib-backfill-bar' ).value = total - remaining;
+			}
+
+			$( 'ib-backfill-status' ).textContent =
+				`Done. ${ total - failed } now play on the site` +
+				( failed ? `, ${ failed } had no downloadable file and still link out to X.` : '.' );
+			button.disabled = false;
+		} );
+	}
+
 	$( 'ib-import' ).addEventListener( 'click', async ( event ) => {
 		const button = event.currentTarget;
 		$( 'ib-progress' ).hidden = false;

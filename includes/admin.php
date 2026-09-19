@@ -141,6 +141,27 @@ function inspiration_board_render_admin() {
 			</div>
 		</div>
 
+		<?php $missing = count( inspiration_board_pins_missing_video() ); ?>
+		<?php if ( $missing ) : ?>
+		<div class="ib-step">
+			<h2><span class="ib-num">+</span><?php esc_html_e( 'Download videos', 'inspiration-board' ); ?></h2>
+			<p>
+				<?php
+				printf(
+					/* translators: %s: number of pins */
+					esc_html( _n( '%s pin is a still frame only. X streams videos, so the plugin fetches the file separately.', '%s pins are still frames only. X streams videos, so the plugin fetches the files separately.', $missing, 'inspiration-board' ) ),
+					'<strong>' . esc_html( number_format_i18n( $missing ) ) . '</strong>'
+				);
+				?>
+			</p>
+			<p><button type="button" class="button" id="ib-backfill" data-remaining="<?php echo (int) $missing; ?>"><?php esc_html_e( 'Download videos', 'inspiration-board' ); ?></button></p>
+			<div id="ib-backfill-progress" hidden>
+				<progress id="ib-backfill-bar" max="<?php echo (int) $missing; ?>" value="0"></progress>
+				<p id="ib-backfill-status" aria-live="polite"></p>
+			</div>
+		</div>
+		<?php endif; ?>
+
 		<div class="ib-step">
 			<h2><span class="ib-num">3</span><?php esc_html_e( 'Show the board', 'inspiration-board' ); ?></h2>
 			<?php if ( $page ) : ?>

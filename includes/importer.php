@@ -21,6 +21,24 @@ add_action( 'rest_api_init', 'inspiration_board_register_routes' );
 function inspiration_board_register_routes() {
 	register_rest_route(
 		'inspiration-board/v1',
+		'/backfill-videos',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'inspiration_board_rest_backfill',
+			'permission_callback' => static function () {
+				return current_user_can( 'publish_posts' ) && current_user_can( 'upload_files' );
+			},
+			'args'                => array(
+				'limit' => array(
+					'type'     => 'integer',
+					'required' => false,
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		'inspiration-board/v1',
 		'/import',
 		array(
 			'methods'             => 'POST',
@@ -40,6 +58,116 @@ function inspiration_board_register_routes() {
 			),
 		)
 	);
+}
+
+/**
+ * Pins whose video hasn't been downloaded yet (imported before the plugin
+ * could fetch videos, or when the lookup failed).
+ *
+ * @return int[] Post IDs.
+ */
+function inspiration_board_pins_missing_video( $limit = -1 ) {
+	return get_posts(
+		array(
+			'post_type'      => 'post',
+			'post_status'    => 'any',
+			'posts_per_page' => $limit,
+			'fields'         => 'ids',
+			'meta_query'     => array(
+				array(
+					'key'   => INSPIRATION_BOARD_META_TYPE,
+					'value' => 'video',
+				),
+				// 0 marks a lookup that came back empty; those are retried,
+				// since a later version may find what an earlier one missed.
+				array(
+					'relation' => 'OR',
+					array(
+						'key'     => INSPIRATION_BOARD_META_VIDEO,
+						'compare' => 'NOT EXISTS',
+					),
+					array(
+						'key'   => INSPIRATION_BOARD_META_VIDEO,
+						'value' => '0',
+					),
+				),
+			),
+		)
+	);
+}
+
+/**
+ * REST handler: downloads videos for a few pins that are still stills.
+ */
+function inspiration_board_rest_backfill( WP_REST_Request $request ) {
+	$done   = 0;
+	$failed = 0;
+
+	foreach ( inspiration_board_pins_missing_video( max( 1, (int) $request->get_param( 'limit' ) ) ) as $post_id ) {
+		if ( inspiration_board_add_video_to_pin( $post_id ) ) {
+			$done++;
+		} else {
+			$failed++;
+			// Remember the miss so this pin isn't retried forever.
+			update_post_meta( $post_id, INSPIRATION_BOARD_META_VIDEO, 0 );
+		}
+	}
+
+	return rest_ensure_response(
+		array(
+			'done'      => $done,
+			'failed'    => $failed,
+			'remaining' => count( inspiration_board_pins_missing_video() ),
+		)
+	);
+}
+
+/**
+ * Looks up, downloads and shows the video for a pin that is only a still.
+ *
+ * @return bool Whether the pin now has a video.
+ */
+function inspiration_board_add_video_to_pin( $post_id ) {
+	$post   = get_post( $post_id );
+	$source = (string) get_post_meta( $post_id, INSPIRATION_BOARD_META_SOURCE, true );
+	$still  = wp_get_attachment_url( (int) get_post_thumbnail_id( $post_id ) );
+	if ( ! $post || ! $source ) {
+		return false;
+	}
+
+	$video_url = inspiration_board_find_tweet_video( $source, (string) $still );
+	if ( ! $video_url ) {
+		return false;
+	}
+
+	$video_id = inspiration_board_sideload( $video_url, $post_id, array( 'text' => '' ) );
+	if ( is_wp_error( $video_id ) ) {
+		return false;
+	}
+
+	update_post_meta( $post_id, INSPIRATION_BOARD_META_VIDEO, (int) $video_id );
+
+	// Swap the still in the post for the video, keeping the source line.
+	$attachment_id = (int) get_post_thumbnail_id( $post_id );
+	$poster        = $attachment_id ? ' poster="' . esc_url( wp_get_attachment_image_url( $attachment_id, 'large' ) ) . '"' : '';
+	$video_block   = '<!-- wp:video {"id":' . (int) $video_id . ',"className":"inspiration-board-video"} -->' . "\n"
+		. '<figure class="wp-block-video inspiration-board-video"><video controls preload="metadata" playsinline' . $poster
+		. ' src="' . esc_url( wp_get_attachment_url( $video_id ) ) . '"></video></figure>' . "\n"
+		. "<!-- /wp:video -->\n\n";
+
+	$content = $post->post_content;
+	$at      = strpos( $content, '<!-- wp:paragraph {"className":"inspiration-board-source"' );
+	$source_block = false === $at ? '' : substr( $content, $at );
+	$source_block = str_replace( array( 'Watch: ', 'Watch on X' ), array( 'Source: ', 'Source on X' ), $source_block );
+
+	wp_update_post(
+		array(
+			'ID'           => $post_id,
+			'post_content' => $video_block . $source_block,
+		)
+	);
+
+	return true;
 }
 
 /**
@@ -329,17 +457,21 @@ function inspiration_board_import_media( array $tweet, array $item, $order ) {
 
 	set_post_thumbnail( $post_id, $attachment_id );
 
-	// A GIF also brings its silent looping mp4. If that fails, the pin stays
-	// as the still frame rather than failing the whole import.
-	$video_id = 0;
-	if ( 'gif' === $item['type'] ) {
-		$video_id = inspiration_board_sideload( $item['url'], $post_id, $tweet );
+	// GIFs bring their silent mp4 with them; videos need a lookup. If either
+	// fails the pin stays as its still frame rather than failing the import.
+	$video_id  = 0;
+	$video_url = $item['url'];
+	if ( 'video' === $item['type'] ) {
+		$video_url = inspiration_board_find_tweet_video( $tweet['url'], $item['poster'] );
+	}
+	if ( 'photo' !== $item['type'] && $video_url ) {
+		$video_id = inspiration_board_sideload( $video_url, $post_id, $tweet );
 		if ( is_wp_error( $video_id ) ) {
 			$video_id = 0;
 		}
 	}
 
-	$type = $video_id ? 'gif' : ( 'photo' === $item['type'] ? 'photo' : 'video' );
+	$type = 'photo' === $item['type'] ? 'photo' : $item['type'];
 	update_post_meta( $post_id, INSPIRATION_BOARD_META_TYPE, $type );
 	if ( $video_id ) {
 		update_post_meta( $post_id, INSPIRATION_BOARD_META_VIDEO, (int) $video_id );
@@ -368,6 +500,87 @@ function inspiration_board_import_media( array $tweet, array $item, $order ) {
 	);
 
 	return $post_id;
+}
+
+/**
+ * Asks X's public embed endpoint for a tweet's downloadable mp4s.
+ *
+ * X streams videos to the page, so the file isn't in the markup the
+ * collector sees. The endpoint that powers embedded tweets lists plain mp4
+ * renditions; any non-empty token is accepted. Returns the best rendition
+ * up to 1280px wide for the still frame given, or '' if there is none.
+ *
+ * @return string mp4 URL, or ''.
+ */
+function inspiration_board_find_tweet_video( $tweet_url, $poster ) {
+	if ( ! preg_match( '#/status/(\d+)#', $tweet_url, $m ) ) {
+		return '';
+	}
+
+	$response = wp_remote_get(
+		add_query_arg(
+			array(
+				'id'    => $m[1],
+				'token' => 'a',
+				'lang'  => 'en',
+			),
+			'https://cdn.syndication.twimg.com/tweet-result'
+		),
+		array( 'timeout' => 15 )
+	);
+	if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+		return '';
+	}
+
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( ! is_array( $data ) ) {
+		return '';
+	}
+
+	// A tweet can hold several videos: match the one whose still frame is
+	// the one we are importing.
+	$wanted = pathinfo( (string) wp_parse_url( $poster, PHP_URL_PATH ), PATHINFO_FILENAME );
+	// A bookmarked tweet may quote the one that actually holds the video.
+	$candidates = array_merge(
+		(array) ( $data['mediaDetails'] ?? array() ),
+		(array) ( $data['quoted_tweet']['mediaDetails'] ?? array() )
+	);
+
+	$videos = array_values(
+		array_filter(
+			$candidates,
+			static function ( $media ) {
+				return ! empty( $media['video_info']['variants'] );
+			}
+		)
+	);
+	// With one video there is nothing to match against; with several, pick
+	// the one whose still frame is the one being imported.
+	$single = 1 === count( $videos );
+	$best   = '';
+	$width  = 0;
+	foreach ( $videos as $media ) {
+		$still = pathinfo( (string) wp_parse_url( (string) ( $media['media_url_https'] ?? '' ), PHP_URL_PATH ), PATHINFO_FILENAME );
+		if ( ! $single && $wanted && $still && $still !== $wanted ) {
+			continue;
+		}
+		foreach ( (array) ( $media['video_info']['variants'] ?? array() ) as $variant ) {
+			// X appends things like ?tag=14, so match on the path alone.
+			$url  = (string) ( $variant['url'] ?? '' );
+			$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+			if ( 'video.twimg.com' !== $host || ! preg_match( '#/(\d+)x(\d+)/[^/]+\.mp4$#', $path, $size ) ) {
+				continue;
+			}
+			if ( (int) $size[1] > 1280 || (int) $size[1] <= $width ) {
+				continue;
+			}
+			$width = (int) $size[1];
+			$best  = $url;
+		}
+	}
+
+	return $best;
 }
 
 /**
@@ -428,9 +641,13 @@ function inspiration_board_build_content( array $tweet, $attachment_id = 0, $vid
 	$blocks = '';
 
 	if ( $video_id ) {
-		$blocks .= '<!-- wp:video {"id":' . (int) $video_id . ',"className":"inspiration-board-gif"} -->' . "\n";
-		$blocks .= '<figure class="wp-block-video inspiration-board-gif"><video autoplay loop muted playsinline';
-		$blocks .= $attachment_id ? ' poster="' . esc_url( wp_get_attachment_image_url( $attachment_id, 'large' ) ) . '"' : '';
+		// GIFs loop silently on their own; videos get controls and sound.
+		$is_gif  = 'gif' === $type;
+		$poster  = $attachment_id ? ' poster="' . esc_url( wp_get_attachment_image_url( $attachment_id, 'large' ) ) . '"' : '';
+		$attrs   = $is_gif ? 'autoplay loop muted playsinline' : 'controls preload="metadata" playsinline';
+		$class   = $is_gif ? 'inspiration-board-gif' : 'inspiration-board-video';
+		$blocks .= '<!-- wp:video {"id":' . (int) $video_id . ',"className":"' . $class . '"} -->' . "\n";
+		$blocks .= '<figure class="wp-block-video ' . $class . '"><video ' . $attrs . $poster;
 		$blocks .= ' src="' . esc_url( wp_get_attachment_url( $video_id ) ) . '"></video></figure>' . "\n";
 		$blocks .= "<!-- /wp:video -->\n\n";
 	} elseif ( $attachment_id ) {
@@ -444,7 +661,7 @@ function inspiration_board_build_content( array $tweet, $attachment_id = 0, $vid
 	if ( $tweet['handle'] ) {
 		$who = trim( $who . ' (@' . $tweet['handle'] . ')' );
 	}
-	if ( 'video' === $type ) {
+	if ( 'video' === $type && ! $video_id ) {
 		/* translators: %s: name and handle */
 		$label = $who ? sprintf( __( 'Watch: %s on X', 'inspiration-board' ), $who ) : __( 'Watch on X', 'inspiration-board' );
 	} else {
