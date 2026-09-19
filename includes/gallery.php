@@ -10,6 +10,28 @@ add_shortcode( 'inspiration_board', 'inspiration_board_shortcode' );
 add_action( 'wp_enqueue_scripts', 'inspiration_board_register_styles' );
 add_filter( 'body_class', 'inspiration_board_body_class' );
 add_filter( 'document_title_parts', 'inspiration_board_document_title' );
+add_action( 'init', 'inspiration_board_register_template' );
+
+const INSPIRATION_BOARD_TEMPLATE = 'inspiration-board';
+
+/**
+ * A full-width page template without the theme's sidebar or header: just the
+ * page content and the theme's footer. Needs WordPress 6.7+ (block themes).
+ */
+function inspiration_board_register_template() {
+	if ( ! function_exists( 'register_block_template' ) ) {
+		return;
+	}
+	register_block_template(
+		'inspiration-board//' . INSPIRATION_BOARD_TEMPLATE,
+		array(
+			'title'       => __( 'Inspiration Board (no sidebar)', 'inspiration-board' ),
+			'description' => __( 'Full width, no sidebar or header. Just the page content and the footer.', 'inspiration-board' ),
+			'content'     => file_get_contents( INSPIRATION_BOARD_DIR . 'templates/inspiration-board.html' ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			'post_types'  => array( 'page' ),
+		)
+	);
+}
 
 function inspiration_board_register_styles() {
 	wp_register_style(

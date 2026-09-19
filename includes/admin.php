@@ -68,6 +68,7 @@ function inspiration_board_create_page() {
 				'post_title'   => __( 'Inspiration', 'inspiration-board' ),
 				'post_name'    => 'inspiration-board',
 				'post_content' => "<!-- wp:shortcode -->\n[inspiration_board]\n<!-- /wp:shortcode -->",
+				'page_template' => function_exists( 'register_block_template' ) ? INSPIRATION_BOARD_TEMPLATE : '',
 			)
 		);
 	} else {
