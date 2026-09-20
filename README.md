@@ -18,28 +18,6 @@ Everything lives under **Tools → Inspiration Board**.
 
 **The board.** One click creates a page at `/inspiration` using the plugin's full-width, no-sidebar template. Or put `[inspiration_board]` on any page yourself; options are `columns` (default 4) and `per_page` (default 60).
 
-## How pins behave
-
-- Untitled, with the media in the post and a source link beneath it.
-- Dated like the tweet or post they came from, so their permalinks match.
-- Ordered by when you saved them, which is not the same as their dates.
-- GIFs loop silently on the board. Videos do too, unless they're over 15MB or the visitor asked for reduced motion or less data; those keep a play badge and play on their own page.
-- Kept out of your posts page and main feed, and off Jetpack's subscriber emails and social sharing.
-- Deleted pins stay deleted: later imports skip them, and their files go with them.
-
-## Filters
-
-| Filter | Default | Effect |
-| --- | --- | --- |
-| `inspiration_board_hide_from_blog` | `true` | `false` lets pins appear on your posts page and main feed. |
-| `inspiration_board_category_slug` | `inspiration-board` | Slug used when the plugin first creates its category. |
-
-## Notes
-
-X streams videos rather than serving files, so the plugin asks X's public embed endpoint for a downloadable mp4 (up to 1280px wide), including videos inside a quoted tweet. Pins imported before that worked can be filled in from Tools.
-
-The collector reads the page you're looking at and sends nothing anywhere. X changes its markup from time to time; if a run collects nothing, the selectors in `assets/collect-bookmarks.js` are the place to look.
-
 ## License
 
 GPL-2.0-or-later. See [LICENSE](LICENSE).
