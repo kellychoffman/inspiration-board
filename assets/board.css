@@ -36,9 +36,8 @@
 }
 
 .inspiration-board__header {
+	/* No left padding: the title lines up with the first column of tiles. */
 	margin: 0 0 56px;
-	/* Keep the title off themes' column rules (e.g. Retrospect's border). */
-	padding-left: 24px;
 }
 
 .inspiration-board-wrap .inspiration-board__home {
