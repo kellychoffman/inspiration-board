@@ -51,6 +51,34 @@
 		return Number( video.dataset.size || 0 ) <= MAX_AUTOPLAY_BYTES;
 	}
 
+	// The badge comes off only once the tile is really moving: a phone that
+	// refuses autoplay (Low Power Mode, say) keeps its play badge.
+	function start( video ) {
+		var playing = video.play();
+		if ( ! playing || ! playing.then ) {
+			video.parentNode.classList.toggle( 'is-playing', ! video.paused );
+			return;
+		}
+		playing.then(
+			function () {
+				video.parentNode.classList.add( 'is-playing' );
+			},
+			function () {
+				video.parentNode.classList.remove( 'is-playing' );
+				// Some browsers refuse until there's data; try once more then.
+				video.addEventListener(
+					'loadeddata',
+					function () {
+						if ( video.paused ) {
+							start( video );
+						}
+					},
+					{ once: true }
+				);
+			}
+		);
+	}
+
 	function playVisibleGifs() {
 		var videos = [].filter.call( document.querySelectorAll( '.inspiration-board__video[data-src]' ), autoplayWanted );
 		if ( ! videos.length || ! ( 'IntersectionObserver' in window ) ) {
@@ -64,12 +92,7 @@
 						if ( ! video.src ) {
 							video.src = video.dataset.src;
 						}
-						var playing = video.play();
-						if ( playing && playing.catch ) {
-							playing.catch( function () {} );
-						}
-						// Drops the play badge once the tile is moving.
-						video.parentNode.classList.add( 'is-playing' );
+						start( video );
 					} else {
 						video.pause();
 					}
