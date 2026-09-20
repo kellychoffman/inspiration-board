@@ -163,6 +163,27 @@ function inspiration_board_render_admin() {
 		<?php endif; ?>
 
 		<div class="ib-step">
+			<h2><span class="ib-num">+</span><?php esc_html_e( 'Add images from this site', 'inspiration-board' ); ?></h2>
+			<p><?php esc_html_e( 'Pull images out of posts you have already published. Each image you pick becomes its own pin, reusing the same file and linking back to the post.', 'inspiration-board' ); ?></p>
+			<p>
+				<label for="ib-local-category"><?php esc_html_e( 'Category:', 'inspiration-board' ); ?></label>
+				<input type="text" id="ib-local-category" value="found" class="regular-text" style="width: 12em">
+				<button type="button" class="button" id="ib-local-find"><?php esc_html_e( 'Find images', 'inspiration-board' ); ?></button>
+			</p>
+			<div id="ib-local-results" hidden>
+				<p class="ib-local-actions">
+					<button type="button" class="button-link" id="ib-local-all"><?php esc_html_e( 'Select all', 'inspiration-board' ); ?></button> ·
+					<button type="button" class="button-link" id="ib-local-none"><?php esc_html_e( 'Select none', 'inspiration-board' ); ?></button>
+				</p>
+				<div id="ib-local-grid" class="ib-local-grid"></div>
+				<p>
+					<button type="button" class="button button-primary" id="ib-local-import"><?php esc_html_e( 'Add selected to the board', 'inspiration-board' ); ?></button>
+					<span id="ib-local-status"></span>
+				</p>
+			</div>
+		</div>
+
+		<div class="ib-step">
 			<h2><span class="ib-num">3</span><?php esc_html_e( 'Show the board', 'inspiration-board' ); ?></h2>
 			<?php if ( $page ) : ?>
 				<p>

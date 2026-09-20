@@ -53,3 +53,50 @@
 	max-height: 160px;
 	overflow: auto;
 }
+
+.ib-local-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 12px;
+	max-height: 420px;
+	overflow: auto;
+	padding: 4px;
+	border: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.ib-local-item {
+	display: block;
+	position: relative;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	padding: 8px;
+	font-size: 12px;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.ib-local-item input {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	z-index: 1;
+}
+
+.ib-local-item img {
+	display: block;
+	width: 100%;
+	height: 120px;
+	object-fit: contain;
+	background: #f0f0f1;
+	margin-bottom: 6px;
+}
+
+.ib-local-item em {
+	color: #696969;
+	font-style: normal;
+}
+
+.ib-local-actions {
+	margin-bottom: 4px;
+}

@@ -82,6 +82,67 @@
 		} );
 	}
 
+	const localFind = $( 'ib-local-find' );
+	if ( localFind ) {
+		const grid = $( 'ib-local-grid' );
+		const status = ( text ) => ( $( 'ib-local-status' ).textContent = text );
+		const boxes = () => grid.querySelectorAll( 'input[type=checkbox]' );
+
+		localFind.addEventListener( 'click', async () => {
+			const category = $( 'ib-local-category' ).value.trim();
+			status( '' );
+			grid.textContent = 'Looking…';
+			$( 'ib-local-results' ).hidden = false;
+			let images;
+			try {
+				images = await wp.apiFetch( { path: `/inspiration-board/v1/local-images?category=${ encodeURIComponent( category ) }` } );
+			} catch ( e ) {
+				grid.textContent = e.message || 'Could not read that category.';
+				return;
+			}
+			if ( ! images.length ) {
+				grid.textContent = 'No images there that are not already on the board.';
+				return;
+			}
+			grid.textContent = '';
+			images.forEach( ( image ) => {
+				const label = document.createElement( 'label' );
+				label.className = 'ib-local-item';
+				label.innerHTML =
+					`<input type="checkbox" value="${ image.attachment_id }" checked>` +
+					`<img src="${ image.thumb }" alt="">` +
+					`<span>${ image.post_title } <em>${ image.date }</em></span>`;
+				grid.appendChild( label );
+			} );
+			status( `${ images.length } images found.` );
+		} );
+
+		$( 'ib-local-all' ).addEventListener( 'click', () => boxes().forEach( ( b ) => ( b.checked = true ) ) );
+		$( 'ib-local-none' ).addEventListener( 'click', () => boxes().forEach( ( b ) => ( b.checked = false ) ) );
+
+		$( 'ib-local-import' ).addEventListener( 'click', async ( event ) => {
+			const chosen = [ ...boxes() ].filter( ( b ) => b.checked ).map( ( b ) => Number( b.value ) );
+			if ( ! chosen.length ) {
+				status( 'Nothing selected.' );
+				return;
+			}
+			event.currentTarget.disabled = true;
+			status( `Adding ${ chosen.length }…` );
+			try {
+				const result = await wp.apiFetch( {
+					path: '/inspiration-board/v1/import-local',
+					method: 'POST',
+					data: { category: $( 'ib-local-category' ).value.trim(), images: chosen },
+				} );
+				status( `Added ${ result.created }. Reload to pick more.` );
+				[ ...boxes() ].forEach( ( b ) => b.checked && b.closest( '.ib-local-item' ).remove() );
+			} catch ( e ) {
+				status( e.message || 'That did not work.' );
+			}
+			event.currentTarget.disabled = false;
+		} );
+	}
+
 	$( 'ib-import' ).addEventListener( 'click', async ( event ) => {
 		const button = event.currentTarget;
 		$( 'ib-progress' ).hidden = false;
