@@ -258,7 +258,11 @@ function inspiration_board_shortcode( $atts ) {
 		<?php if ( inspiration_board_uses_template() ) : // The template has no site header, so link home. ?>
 			<a class="inspiration-board__home" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a>
 		<?php endif; ?>
-		<h1 class="inspiration-board__title"><?php echo esc_html( $heading ); ?></h1>
+		<div class="inspiration-board__line">
+			<h1 class="inspiration-board__title"><?php echo esc_html( $heading ); ?></h1>
+			<?php // Shown by board.js, which does the shuffling; without scripts there is nothing to click. ?>
+			<a class="inspiration-board__shuffle" href="#" hidden><?php esc_html_e( 'Shuffle', 'inspiration-board' ); ?></a>
+		</div>
 	</header>
 	<div class="inspiration-board" style="--ib-columns: <?php echo (int) $columns; ?>">
 		<?php

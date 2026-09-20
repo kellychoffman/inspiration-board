@@ -105,6 +105,49 @@
 		} );
 	}
 
+	// The shuffle link: puts the tiles in a new random order in place, with
+	// no reload, so the whole board can be read again from the top.
+	function shuffleBoard( board ) {
+		var pins = [].slice.call( board.children );
+		for ( var i = pins.length - 1; i > 0; i-- ) {
+			var j = Math.floor( Math.random() * ( i + 1 ) );
+			var swap = pins[ i ];
+			pins[ i ] = pins[ j ];
+			pins[ j ] = swap;
+		}
+		var fragment = document.createDocumentFragment();
+		pins.forEach( function ( pin ) {
+			fragment.appendChild( pin );
+		} );
+		board.appendChild( fragment );
+		replayVisible( board );
+	}
+
+	// Taking a tile out of the page pauses its video, and a tile that stayed
+	// on screen gets no new intersection event to start it again.
+	function replayVisible( board ) {
+		board.querySelectorAll( '.inspiration-board__video[src]' ).forEach( function ( video ) {
+			var box = video.getBoundingClientRect();
+			var near = box.bottom > -200 && box.top < window.innerHeight + 200;
+			if ( near && video.paused && autoplayWanted( video ) ) {
+				start( video );
+			}
+		} );
+	}
+
+	function shuffleLink() {
+		var link = document.querySelector( '.inspiration-board__shuffle' );
+		var board = document.querySelector( '.inspiration-board' );
+		if ( ! link || ! board ) {
+			return;
+		}
+		link.hidden = false;
+		link.addEventListener( 'click', function ( event ) {
+			event.preventDefault();
+			shuffleBoard( board );
+		} );
+	}
+
 	// A pin's own page: start its video muted, so clicking a tile always
 	// leads to something moving. Controls are there to unmute.
 	function playPinVideo() {
@@ -147,6 +190,7 @@
 	}
 
 	fit();
+	shuffleLink();
 	keyboardPostNav();
 	playPinVideo();
 	playVisibleGifs();

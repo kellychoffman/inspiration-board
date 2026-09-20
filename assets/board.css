@@ -53,6 +53,23 @@
 	color: var(--ib-ink);
 }
 
+/* The title and, once board.js is running, the shuffle link beside it. */
+.inspiration-board__line {
+	display: flex;
+	align-items: baseline;
+	gap: 16px;
+}
+
+.inspiration-board-wrap .inspiration-board__shuffle {
+	font-size: 13px;
+	color: var(--ib-muted);
+	text-decoration: none;
+}
+
+.inspiration-board-wrap .inspiration-board__shuffle:hover {
+	color: var(--ib-ink);
+}
+
 .inspiration-board .inspiration-board__title,
 .inspiration-board-wrap .inspiration-board__title {
 	margin: 0;
