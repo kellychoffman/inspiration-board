@@ -1,49 +1,44 @@
 # Inspiration Board
 
-A WordPress plugin that turns the images from your X (Twitter) bookmarks into a quiet, Are.na-style gallery page on your site. Each image becomes its own post with a link back to the original tweet.
+A WordPress plugin. Images you save elsewhere become a quiet, Are.na-style board on your own site: square tiles, uncropped, newest first. Each tile is its own post holding the image, a GIF or a video, and a link to where it came from.
 
-- **Gallery page:** a grid of square tiles with uncropped images and small grey captions. It sizes itself to your theme's main column, capped at 1280px wide.
-- **One post per image:** the image is the post's featured image, and the post content is a single link: "Source: Name (@handle) on X ↗".
-- **Its own category:** posts go into an "Inspiration" category the plugin creates. It never adopts an existing category.
-- **Stays out of your blog:** imported posts are left off your posts page and main RSS feed. They only appear on the board and their category archive.
-- **No API keys:** a small browser snippet reads the bookmarks page you're already logged in to. Nothing is sent to X or anywhere else.
+Requires WordPress 6.4+ and PHP 7.4+. The no-sidebar page template needs 6.7.
 
 ## Install
 
-1. Download this repository as a zip (Code → Download ZIP), or clone it into `wp-content/plugins/inspiration-board`.
-2. In WordPress, go to Plugins → Add New → Upload Plugin, choose the zip, and activate.
-
-Requires WordPress 6.4+ and PHP 7.4+.
+Download this repository as a zip, then Plugins → Add New → Upload Plugin → Activate.
 
 ## Use
 
-1. **Collect.** Go to Tools → Inspiration Board and click **Copy snippet**. Open [x.com/i/bookmarks](https://x.com/i/bookmarks) (X also lists bookmarks under History), open the browser console (Cmd+Option+J in Chrome), paste, and press Return. It scrolls to the end of the list and downloads `inspiration-bookmarks.json`.
-2. **Import.** Back on Tools → Inspiration Board, choose that file and click **Import images**. Photos you've already imported are skipped, so you can re-run it whenever you bookmark more.
-3. **Show.** Click **Create an "Inspiration" page**, or add `[inspiration_board]` to any page.
+Everything lives under **Tools → Inspiration Board**.
 
-Shortcode options: `[inspiration_board columns="4" per_page="60"]`.
+**From X bookmarks.** Copy the snippet, paste it into the browser console on [x.com/i/bookmarks](https://x.com/i/bookmarks), and keep the window visible while it scrolls (X stops loading when hidden). It downloads a JSON file; upload that on the same screen. Photos, GIFs and videos are saved to your media library. Re-run it any time: anything already on the board is skipped.
 
-Only photos are imported. Tweets that only have video or GIFs are skipped.
+**From your own posts.** Name a category, click Find images, and pick from the thumbnails. Those pins reuse the existing file and link back to the post.
 
-## Publishing quietly
+**The board.** One click creates a page at `/inspiration` using the plugin's full-width, no-sidebar template. Or put `[inspiration_board]` on any page yourself; options are `columns` (default 4) and `per_page` (default 60).
 
-Imported posts are created as drafts, flagged, and then published, so on sites running Jetpack (including WordPress.com) they don't:
+## How pins behave
 
-- email your subscribers (`_jetpack_dont_email_post_to_subs`)
-- auto-share to social networks (`_wpas_done_all`, plus the `jetpack_publicize_should_publicize_published_post` filter during import)
+- Untitled, with the media in the post and a source link beneath it.
+- Dated like the tweet or post they came from, so their permalinks match.
+- Ordered by when you saved them, which is not the same as their dates.
+- GIFs loop silently on the board. Videos do too, unless they're over 15MB or the visitor asked for reduced motion or less data; those keep a play badge and play on their own page.
+- Kept out of your posts page and main feed, and off Jetpack's subscriber emails and social sharing.
+- Deleted pins stay deleted: later imports skip them, and their files go with them.
 
 ## Filters
 
-| Filter | Default | What it does |
+| Filter | Default | Effect |
 | --- | --- | --- |
-| `inspiration_board_hide_from_blog` | `true` | Return `false` to let imported posts appear on your posts page and main feed. |
+| `inspiration_board_hide_from_blog` | `true` | `false` lets pins appear on your posts page and main feed. |
 | `inspiration_board_category_slug` | `inspiration-board` | Slug used when the plugin first creates its category. |
 
-## How the snippet works
+## Notes
 
-`assets/collect-bookmarks.js` runs in your own logged-in browser tab. It scrolls the timeline and reads each tweet's link, author, text, date, and photo URLs from the page, then saves them as JSON. The importer only accepts `x.com`/`twitter.com` status links and images from `pbs.twimg.com/media/`, and downloads each image into your media library.
+X streams videos rather than serving files, so the plugin asks X's public embed endpoint for a downloadable mp4 (up to 1280px wide), including videos inside a quoted tweet. Pins imported before that worked can be filled in from Tools.
 
-X changes its page markup from time to time. If the snippet collects nothing, the selectors in that file probably need updating.
+The collector reads the page you're looking at and sends nothing anywhere. X changes its markup from time to time; if a run collects nothing, the selectors in `assets/collect-bookmarks.js` are the place to look.
 
 ## License
 
