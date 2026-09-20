@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pin to Inspiration Board</title>
+<style>
+  :root { color-scheme: light dark; --ink: #131313; --paper: #f4f3ef; --quiet: #6f6d67; --line: #d8d6d0; --accent: #d1492a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f4f3ef; --paper: #131313; --quiet: #96938c; --line: #2c2c2c; --accent: #e85d3c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 48px 24px 80px; background: var(--paper); color: var(--ink);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 620px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--quiet); margin: 34px 0 10px; font-weight: 600; }
+  p { margin: 0 0 14px; color: var(--quiet); }
+  p.lede { color: var(--ink); }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 5px; }
+  input[type="text"], input[type="password"] {
+    width: 100%; padding: 9px 11px; font: inherit; font-size: 14px;
+    background: transparent; color: inherit; border: 1px solid var(--line);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .field { margin: 0 0 16px; }
+  .hint { font-size: 12px; color: var(--quiet); margin: 6px 0 0; }
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 9px 16px; border: 0; cursor: pointer;
+           background: var(--ink); color: var(--paper); }
+  button.quiet { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .said { font-size: 13px; color: var(--quiet); }
+  .said.bad { color: var(--accent); }
+  .said.good { color: #3f8c5c; }
+  a { color: var(--accent); }
+  details { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 30px; }
+  summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+  ol { color: var(--quiet); padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pin to Inspiration Board</h1>
+  <p class="lede">Click the toolbar button on any page to pick images from it. Each one you pick becomes its own pin, dated the moment you pin it.</p>
+
+  <h2>Your site</h2>
+  <div class="field">
+    <label for="site">Site address</label>
+    <input type="text" id="site" spellcheck="false" autocomplete="off" placeholder="https://kelly.blog">
+    <p class="hint">The site running the Inspiration Board plugin, version 0.16.0 or newer.</p>
+  </div>
+
+  <div class="row">
+    <button id="save" type="button">Save</button>
+    <button id="check" class="quiet" type="button">Check connection</button>
+    <span class="said" id="said"></span>
+  </div>
+
+  <details id="advanced">
+    <summary>Sign in with an application password instead</summary>
+    <p>By default the extension posts as whoever is signed in to your site in this browser, and stores nothing. Use an application password only if you would rather it work while you are signed out.</p>
+    <ol>
+      <li>Open <a id="authorize" href="#" target="_blank" rel="noreferrer noopener">Users → Profile → Application Passwords</a> on your site and make one named <code>Inspiration Board</code>.</li>
+      <li>Copy the password WordPress shows you and paste it below. It is stored in this browser's extension storage and sent only to your own site.</li>
+    </ol>
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="password">Application password</label>
+      <input type="password" id="password" spellcheck="false" autocomplete="off">
+      <p class="hint">Leave both blank to go back to using your browser login.</p>
+    </div>
+  </details>
+</main>
+<script src="options.js"></script>
+</body>
+</html>

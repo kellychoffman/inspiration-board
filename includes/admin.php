@@ -7,6 +7,7 @@ defined( 'ABSPATH' ) || exit;
 
 add_action( 'admin_menu', 'inspiration_board_admin_menu' );
 add_action( 'admin_post_inspiration_board_create_page', 'inspiration_board_create_page' );
+add_action( 'admin_post_inspiration_board_extension', 'inspiration_board_send_extension' );
 
 function inspiration_board_admin_menu() {
 	$hook = add_management_page(
@@ -184,6 +185,20 @@ function inspiration_board_render_admin() {
 		</div>
 
 		<div class="ib-step">
+			<h2><span class="ib-num">+</span><?php esc_html_e( 'Pin from any page', 'inspiration-board' ); ?></h2>
+			<p><?php esc_html_e( 'A small Chrome extension puts a button in your toolbar. On any page worth keeping, click it, pick the images you want, and each one becomes its own pin, dated the moment you pin it.', 'inspiration-board' ); ?></p>
+			<ol>
+				<li><?php esc_html_e( 'Download the extension below and unzip it somewhere you will keep it.', 'inspiration-board' ); ?></li>
+				<li><?php esc_html_e( 'Open chrome://extensions, turn on Developer mode, and choose "Load unpacked".', 'inspiration-board' ); ?></li>
+				<li><?php esc_html_e( 'Pick the unzipped folder. As long as you are signed in to this site in the same browser, it is ready.', 'inspiration-board' ); ?></li>
+			</ol>
+			<p>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=inspiration_board_extension' ), 'inspiration_board_extension' ) ); ?>"><?php esc_html_e( 'Download the extension', 'inspiration-board' ); ?></a>
+			</p>
+			<p class="description"><?php esc_html_e( 'Right-clicking any image on the web offers "Pin this image to the Inspiration Board" too, for when you only want the one.', 'inspiration-board' ); ?></p>
+		</div>
+
+		<div class="ib-step">
 			<h2><span class="ib-num">3</span><?php esc_html_e( 'Show the board', 'inspiration-board' ); ?></h2>
 			<?php if ( $page ) : ?>
 				<p>
@@ -210,4 +225,45 @@ function inspiration_board_render_admin() {
 		</div>
 	</div>
 	<?php
+}
+
+/**
+ * Hands over the browser extension as a zip, so it can be installed from
+ * wherever the plugin is running rather than hunted down on GitHub.
+ */
+function inspiration_board_send_extension() {
+	if ( ! current_user_can( 'publish_posts' ) ) {
+		wp_die( esc_html__( 'You are not allowed to do that.', 'inspiration-board' ) );
+	}
+	check_admin_referer( 'inspiration_board_extension' );
+
+	$dir = INSPIRATION_BOARD_DIR . 'extension';
+	if ( ! is_dir( $dir ) || ! class_exists( 'ZipArchive' ) ) {
+		wp_die( esc_html__( 'This server cannot build the download. Take the extension folder from the plugin files instead.', 'inspiration-board' ) );
+	}
+
+	$file = wp_tempnam( 'inspiration-board-extension' );
+	$zip  = new ZipArchive();
+	if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
+		wp_delete_file( $file );
+		wp_die( esc_html__( 'The download could not be put together.', 'inspiration-board' ) );
+	}
+
+	$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) );
+	foreach ( $files as $path ) {
+		if ( $path->isDir() ) {
+			continue;
+		}
+		$inside = ltrim( str_replace( $dir, '', $path->getPathname() ), '/\\' );
+		$zip->addFile( $path->getPathname(), 'inspiration-board-extension/' . $inside );
+	}
+	$zip->close();
+
+	nocache_headers();
+	header( 'Content-Type: application/zip' );
+	header( 'Content-Disposition: attachment; filename="inspiration-board-extension.zip"' );
+	header( 'Content-Length: ' . filesize( $file ) );
+	readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
+	wp_delete_file( $file );
+	exit;
 }
