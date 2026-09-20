@@ -119,7 +119,35 @@
 		}
 	}
 
+	// On a pin's page, the left and right arrows follow the theme's own
+	// previous and next post links. Does nothing where there aren't any.
+	function keyboardPostNav() {
+		var previous = document.querySelector( '.post-navigation-link-previous a, a[rel~="prev"]' );
+		var next = document.querySelector( '.post-navigation-link-next a, a[rel~="next"]' );
+		if ( ! previous && ! next ) {
+			return;
+		}
+
+		document.addEventListener( 'keydown', function ( event ) {
+			if ( event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey ) {
+				return;
+			}
+			var target = event.target;
+			if ( target && ( target.isContentEditable || /^(input|textarea|select|button)$/i.test( target.tagName ) ) ) {
+				return;
+			}
+
+			var link = 'ArrowLeft' === event.key ? previous : 'ArrowRight' === event.key ? next : null;
+			if ( ! link || ! link.href ) {
+				return;
+			}
+			event.preventDefault();
+			window.location.href = link.href;
+		} );
+	}
+
 	fit();
+	keyboardPostNav();
 	playPinVideo();
 	playVisibleGifs();
 	window.addEventListener( 'resize', fit );
