@@ -237,12 +237,14 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 /* Right-clicking a single image pins just that one, no picker. */
 chrome.runtime.onInstalled.addListener(() => {
-  // Also runs on every update, and the menu outlives one.
-  chrome.contextMenus.removeAll();
-  chrome.contextMenus.create({
-    id: 'inspiration-board-pin',
-    title: 'Pin this image to the Inspiration Board',
-    contexts: ['image'],
+  // Also runs on every update, and the menu outlives one. The new menu waits
+  // for the clearing to finish, or it can be swept away by it.
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'inspiration-board-pin',
+      title: 'Pin this image to the Inspiration Board',
+      contexts: ['image'],
+    });
   });
 });
 
@@ -298,7 +300,8 @@ function openBoard(id) {
   const board = boards.get(id);
   if (board) chrome.tabs.create({ url: board });
   boards.delete(id);
-  chrome.notifications.clear(id);
+  // Already gone if the viewer dismissed it themselves.
+  chrome.notifications.clear(id).catch(() => {});
 }
 
 chrome.notifications.onClicked.addListener(openBoard);
@@ -306,7 +309,20 @@ chrome.notifications.onButtonClicked.addListener(openBoard);
 
 async function flash(tabId, text, colour) {
   const target = tabId ? { tabId } : {};
-  await chrome.action.setBadgeBackgroundColor({ ...target, color: colour });
-  await chrome.action.setBadgeText({ ...target, text });
-  setTimeout(() => chrome.action.setBadgeText({ ...target, text: '' }), 2500);
+
+  // The tab can be closed at any point in this, including during the wait
+  // before the badge is cleared. A badge on a tab that no longer exists is
+  // nothing to raise an error about, least of all an unhandled one from a
+  // timer nobody is waiting on.
+  const quietly = async (change) => {
+    try {
+      await change();
+    } catch (e) {
+      /* The tab has gone; there is no badge left to set. */
+    }
+  };
+
+  await quietly(() => chrome.action.setBadgeBackgroundColor({ ...target, color: colour }));
+  await quietly(() => chrome.action.setBadgeText({ ...target, text }));
+  setTimeout(() => quietly(() => chrome.action.setBadgeText({ ...target, text: '' })), 2500);
 }

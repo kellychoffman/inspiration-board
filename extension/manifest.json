@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pin to Inspiration Board",
-  "version": "0.16.3",
+  "version": "0.16.4",
   "description": "Pick images from any page you are on and pin each one to your Inspiration Board.",
   "permissions": [
     "activeTab",
