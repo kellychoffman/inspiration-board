@@ -67,8 +67,7 @@
 .inspiration-board {
 	display: grid;
 	grid-template-columns: repeat(var(--ib-columns, 4), minmax(0, 1fr));
-	column-gap: 16px;
-	row-gap: 40px;
+	gap: 16px;
 }
 
 @media (max-width: 1000px) {
@@ -80,7 +79,7 @@
 @media (max-width: 600px) {
 	.inspiration-board {
 		grid-template-columns: minmax(0, 1fr);
-		row-gap: 28px;
+		gap: 16px;
 	}
 
 	.inspiration-board-wrap .inspiration-board__title {
