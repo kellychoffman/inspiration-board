@@ -66,7 +66,7 @@ function inspiration_board_create_page() {
 				'post_type'    => 'page',
 				'post_status'  => 'publish',
 				'post_title'   => __( 'Inspiration', 'inspiration-board' ),
-				'post_name'    => 'inspiration-board',
+				'post_name'    => 'inspiration',
 				'post_content' => "<!-- wp:shortcode -->\n[inspiration_board]\n<!-- /wp:shortcode -->",
 				'page_template' => function_exists( 'register_block_template' ) ? INSPIRATION_BOARD_TEMPLATE : '',
 			)

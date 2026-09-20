@@ -10,6 +10,74 @@ add_shortcode( 'inspiration_board', 'inspiration_board_shortcode' );
 add_action( 'wp_enqueue_scripts', 'inspiration_board_register_styles' );
 add_filter( 'body_class', 'inspiration_board_body_class' );
 add_filter( 'post_thumbnail_html', 'inspiration_board_hide_duplicate_thumbnail', 10, 2 );
+add_action( 'template_redirect', 'inspiration_board_redirect_old_page_slug' );
+add_action( 'post_updated', 'inspiration_board_track_page_slug', 10, 3 );
+
+const INSPIRATION_BOARD_OPTION_SLUGS = 'inspiration_board_old_slugs';
+
+/**
+ * Remembers the board page's previous addresses, so renaming it doesn't
+ * break links people already have.
+ */
+function inspiration_board_track_page_slug( $post_id, $post_after, $post_before ) {
+	if ( 'page' !== $post_after->post_type || $post_after->post_name === $post_before->post_name ) {
+		return;
+	}
+	if ( ! has_shortcode( (string) $post_after->post_content, 'inspiration_board' ) ) {
+		return;
+	}
+
+	$slugs = (array) get_option( INSPIRATION_BOARD_OPTION_SLUGS, array() );
+	$slugs[ $post_before->post_name ] = (int) $post_id;
+	unset( $slugs[ $post_after->post_name ] );
+	update_option( INSPIRATION_BOARD_OPTION_SLUGS, $slugs, false );
+}
+
+/**
+ * WordPress redirects a post's old address after a slug change, but not a
+ * page's. Renaming the board page would break links people already have,
+ * so old page addresses are redirected here.
+ */
+function inspiration_board_redirect_old_page_slug() {
+	if ( ! is_404() ) {
+		return;
+	}
+
+	$slug = get_query_var( 'pagename' );
+	if ( ! $slug ) {
+		return;
+	}
+
+	$slugs = (array) get_option( INSPIRATION_BOARD_OPTION_SLUGS, array() );
+	$page  = isset( $slugs[ $slug ] ) ? get_post( (int) $slugs[ $slug ] ) : null;
+
+	// The plugin's own earlier default, for boards created before the page
+	// was called /inspiration.
+	if ( ! $page && 'inspiration-board' === $slug ) {
+		$page = inspiration_board_find_page();
+	}
+
+	// Anything WordPress itself recorded.
+	if ( ! $page ) {
+		$found = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'meta_key'       => '_wp_old_slug',
+				'meta_value'     => $slug,
+			)
+		);
+		$page = $found ? $found[0] : null;
+	}
+
+	if ( ! $page || 'publish' !== $page->post_status ) {
+		return;
+	}
+
+	wp_safe_redirect( get_permalink( $page ), 301 );
+	exit;
+}
 
 /**
  * A pin's media is in its content, so skip the theme's featured image on the
