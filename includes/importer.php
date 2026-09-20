@@ -202,7 +202,13 @@ function inspiration_board_rest_import( WP_REST_Request $request ) {
 		}
 
 		foreach ( $tweet['media'] as $item ) {
-			$existing = inspiration_board_find_pin( inspiration_board_media_key( $item ) );
+			$key = inspiration_board_media_key( $item );
+			if ( inspiration_board_was_deleted( $key ) ) {
+				$results['skipped']++;
+				continue;
+			}
+
+			$existing = inspiration_board_find_pin( $key );
 			if ( $existing ) {
 				$order = (int) get_post_meta( $existing, INSPIRATION_BOARD_META_ORDER, true );
 				if ( $order && $order < $cursor ) {
@@ -395,6 +401,40 @@ function inspiration_board_normalize_image_url( $url ) {
 	return 'https://pbs.twimg.com' . $path . '?format=' . $format . '&name=large';
 }
 
+const INSPIRATION_BOARD_OPTION_DELETED = 'inspiration_board_deleted';
+
+add_action( 'before_delete_post', 'inspiration_board_remember_deleted', 10, 2 );
+
+/**
+ * Deleting a pin for good means you don't want it: remember its media so
+ * later imports skip it, and take its files out of the media library.
+ */
+function inspiration_board_remember_deleted( $post_id, $post = null ) {
+	$key = (string) get_post_meta( $post_id, INSPIRATION_BOARD_META_IMAGE, true );
+	if ( ! $key ) {
+		return;
+	}
+
+	$deleted = (array) get_option( INSPIRATION_BOARD_OPTION_DELETED, array() );
+	if ( ! in_array( $key, $deleted, true ) ) {
+		$deleted[] = $key;
+		update_option( INSPIRATION_BOARD_OPTION_DELETED, $deleted, false );
+	}
+
+	foreach ( array( (int) get_post_thumbnail_id( $post_id ), (int) get_post_meta( $post_id, INSPIRATION_BOARD_META_VIDEO, true ) ) as $attachment_id ) {
+		if ( $attachment_id && (int) wp_get_post_parent_id( $attachment_id ) === (int) $post_id ) {
+			wp_delete_attachment( $attachment_id, true );
+		}
+	}
+}
+
+/**
+ * Whether this media was deleted from the board before.
+ */
+function inspiration_board_was_deleted( $key ) {
+	return in_array( (string) $key, (array) get_option( INSPIRATION_BOARD_OPTION_DELETED, array() ), true );
+}
+
 /**
  * The pin already imported for a media key, if any.
  *
@@ -404,7 +444,9 @@ function inspiration_board_find_pin( $key ) {
 	$existing = get_posts(
 		array(
 			'post_type'      => 'post',
-			'post_status'    => 'any',
+			// Trashed pins count: a pin you threw away shouldn't come back
+			// on the next import. ('any' leaves the trash out.)
+			'post_status'    => array( 'publish', 'future', 'draft', 'pending', 'private', 'trash' ),
 			'meta_key'       => INSPIRATION_BOARD_META_IMAGE,
 			'meta_value'     => $key,
 			'fields'         => 'ids',
