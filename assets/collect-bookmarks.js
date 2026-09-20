@@ -2,13 +2,14 @@
  * Inspiration Board: bookmark collector.
  *
  * Paste this into the browser console on https://x.com/i/bookmarks (or any
- * X page that lists tweets, like /i/history or a profile). It scrolls to the
- * end of the list, collects every tweet with a photo, GIF or video, and downloads
+ * X page that lists tweets, like /i/history or a profile). It collects the
+ * most recent tweets with a photo, GIF or video and downloads
  * inspiration-bookmarks.json for the WordPress importer, in list order.
  * Keep the window visible while it runs: X stops loading when it's hidden.
  * Nothing is sent anywhere; it only reads the page you are looking at.
  */
 ( async () => {
+	const RECENT = 20; // Stop once this many tweets with media have been collected. Set to 0 to read the whole list.
 	const MAX_IDLE_ROUNDS = 6; // Stop after this many scrolls at the bottom with nothing new loading.
 	const wait = ( ms ) => new Promise( ( resolve ) => setTimeout( resolve, ms ) );
 
@@ -164,14 +165,20 @@
 	await wait( 500 );
 
 	let idle = 0;
-	while ( idle < MAX_IDLE_ROUNDS ) {
+	let enough = false;
+	while ( idle < MAX_IDLE_ROUNDS && ! enough ) {
 		const added = grab();
 		const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
 		idle = added || ! atBottom ? 0 : idle + 1;
 		const withMedia = order.filter( ( url ) => tweets.get( url ).media.length ).length;
 		console.log( `Inspiration Board: ${ withMedia } tweets with photos, GIFs or videos so far…` );
-		window.scrollBy( 0, window.innerHeight * 0.7 );
-		await wait( 1200 );
+		// The newest are at the top, so the first RECENT of them are the ones
+		// the board is missing. Anything older is already imported.
+		enough = RECENT > 0 && withMedia >= RECENT;
+		if ( ! enough ) {
+			window.scrollBy( 0, window.innerHeight * 0.7 );
+			await wait( 1200 );
+		}
 	}
 	grab();
 
@@ -186,5 +193,6 @@
 	a.click();
 	a.remove();
 
-	console.log( `Inspiration Board: done. ${ result.length } tweets saved to inspiration-bookmarks.json. Upload it under Tools → Inspiration Board.` );
+	const reach = enough ? 'the newest' : 'all';
+	console.log( `Inspiration Board: done. ${ result.length } tweets (${ reach }) saved to inspiration-bookmarks.json. Upload it under Tools → Inspiration Board. Anything already on the board is skipped, so raise RECENT at the top of the snippet if you need to reach further back.` );
 } )();

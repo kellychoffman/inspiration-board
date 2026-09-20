@@ -117,8 +117,9 @@ function inspiration_board_render_admin() {
 					?>
 				</li>
 				<li><?php esc_html_e( 'Open the developer console (Cmd+Option+J in Chrome, Cmd+Option+C in Safari).', 'inspiration-board' ); ?></li>
-				<li><?php esc_html_e( 'Paste the snippet below and press Return. Keep the window visible while it scrolls to the end of your bookmarks (X stops loading when it is hidden); it then downloads inspiration-bookmarks.json.', 'inspiration-board' ); ?></li>
+				<li><?php esc_html_e( 'Paste the snippet below and press Return. Keep the window visible while it scrolls (X stops loading when it is hidden); it then downloads inspiration-bookmarks.json.', 'inspiration-board' ); ?></li>
 			</ol>
+			<p class="description"><?php esc_html_e( 'It stops after your 20 newest bookmarks with media, which is enough to keep the board current. To reach further back, change RECENT at the top of the snippet, or set it to 0 for the whole list.', 'inspiration-board' ); ?></p>
 			<p class="description"><?php esc_html_e( 'Chrome may ask you to type "allow pasting" the first time. The snippet only reads the page; it sends nothing anywhere.', 'inspiration-board' ); ?></p>
 			<div class="ib-snippet">
 				<textarea id="ib-snippet" readonly rows="8" spellcheck="false"><?php echo esc_textarea( $snippet ); ?></textarea>

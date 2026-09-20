@@ -11,7 +11,7 @@ Download this repository as a zip, then Plugins → Add New → Upload Plugin �
 
 ## Use
 
-**From X bookmarks.** Copy the snippet, paste it into the browser console on [x.com/i/bookmarks](https://x.com/i/bookmarks), and keep the window visible while it scrolls (X stops loading when hidden). It downloads a JSON file; upload that on the same screen. Photos, GIFs and videos are saved to your media library. Re-run it any time: anything already on the board is skipped.
+**From X bookmarks.** Copy the snippet, paste it into the browser console on [x.com/i/bookmarks](https://x.com/i/bookmarks), and keep the window visible while it scrolls (X stops loading when hidden). It stops at your 20 newest bookmarks with media and downloads a JSON file; upload that on the same screen. Photos, GIFs and videos are saved to your media library. Re-run it any time: anything already on the board is skipped. To reach further back, raise `RECENT` at the top of the snippet, or set it to 0 for the whole list.
 
 **From any page on the web.** Download the Chrome extension from the same screen, unzip it, and load it at `chrome://extensions` with Developer mode on (or load `extension/` from this repository directly). Then a toolbar button on any page shows you every image it has, you tick the ones you want, and each becomes its own pin dated the moment you pinned it. Right-clicking a single image offers the same thing for one. Pinning while scrolling an archive links back to the post each image was in rather than to the archive, and an image already in your own media library is reused where it sits instead of being copied. It posts as whoever is signed in to your site in that browser; there is nothing to set up unless your site is somewhere other than the default.
 
