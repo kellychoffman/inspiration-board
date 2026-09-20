@@ -236,6 +236,9 @@
       .count { font-size: 12px; color: #8d8b85; }
       .who { margin-left: auto; font-size: 12px; color: #8d8b85; }
       .who b { font-weight: 500; color: #c9c7c0; }
+      .who .site { color: #c9c7c0; text-decoration: underline; text-underline-offset: 3px; }
+      .who .site:hover { color: #f4f3ef; }
+      .status a { color: #e85d3c; text-decoration: underline; text-underline-offset: 3px; }
       .close {
         appearance: none; border: 1px solid #333; background: none; color: #8d8b85;
         font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
@@ -409,9 +412,20 @@
     $('.select-all').textContent = selected.size ? 'Select none' : 'Select all';
   }
 
-  function say(text, bad) {
-    status.textContent = text;
+  let boardLink = '';
+
+  function say(text, bad, withBoard) {
+    status.replaceChildren(document.createTextNode(text));
     status.className = bad ? 'status bad' : 'status';
+
+    if (withBoard && boardLink) {
+      const link = document.createElement('a');
+      link.href = boardLink;
+      link.target = '_blank';
+      link.rel = 'noreferrer noopener';
+      link.textContent = 'See the board ↗';
+      status.append(' ', link);
+    }
   }
 
   /* --------------------------------------------------------------- actions */
@@ -449,6 +463,7 @@
 
       if (reply && reply.ok) {
         const result = reply.result || {};
+        if (result.board) boardLink = result.board;
         if (result.status === 'created') {
           item.state = 'pinned';
           item.link = result.link || '';
@@ -483,7 +498,7 @@
     const said = [`${created} pinned`];
     if (already) said.push(`${already} already there`);
     if (failed) said.push(`${failed} failed`);
-    say(said.join(', ') + (failed ? '. Click a red tile to try again.' : '.'), !!failed);
+    say(said.join(', ') + (failed ? '. Click a red tile to try again.' : '.'), !!failed, created > 0);
   }
 
   /* --------------------------------------------------------------- wiring */
@@ -530,12 +545,21 @@
   /* Who we are posting as, and what has been pinned already. */
   ask({ type: 'status' }).then((reply) => {
     if (reply && reply.ok) {
-      $('.who').innerHTML = '';
-      $('.who').append(document.createTextNode('Posting to '));
-      const b = document.createElement('b');
-      b.textContent = reply.site.replace(/^https?:\/\//, '');
-      $('.who').append(b);
-      if (reply.who) $('.who').append(document.createTextNode(` as ${reply.who}`));
+      if (reply.board) boardLink = reply.board;
+
+      const who = $('.who');
+      who.replaceChildren(document.createTextNode('Posting to '));
+
+      const site = document.createElement(boardLink ? 'a' : 'b');
+      site.textContent = reply.site.replace(/^https?:\/\//, '');
+      if (boardLink) {
+        site.href = boardLink;
+        site.target = '_blank';
+        site.rel = 'noreferrer noopener';
+        site.className = 'site';
+      }
+      who.append(site);
+      if (reply.who) who.append(document.createTextNode(` as ${reply.who}`));
     } else {
       say((reply && reply.error) || 'Not connected.', true);
     }

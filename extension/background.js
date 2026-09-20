@@ -250,11 +250,52 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       url: info.pageUrl || (tab && tab.url) || '',
       title: (tab && tab.title) || '',
     });
-    await flash(tab && tab.id, result.status === 'created' ? '✓' : '=', '#2f7d4f');
+    const made = result.status === 'created';
+    await flash(tab && tab.id, made ? '✓' : '=', '#2f7d4f');
+    await tell(
+      made ? 'Pinned to your Inspiration Board' : 'Already on your Inspiration Board',
+      made ? 'It is at the top of the board now.' : result.message || '',
+      result.board
+    );
   } catch (e) {
     await flash(tab && tab.id, '!', '#c0392b');
+    await tell('That one could not be pinned', e.message, '');
   }
 });
+
+/**
+ * Says what happened, since the right-click route has no window of its own.
+ * Where the board is rides along on the notification, so clicking it opens
+ * the board rather than nothing.
+ */
+const boards = new Map();
+
+async function tell(title, message, board) {
+  const id = `inspiration-board-${Date.now()}`;
+  if (board) boards.set(id, board);
+
+  try {
+    await chrome.notifications.create(id, {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
+      title,
+      message: message || '',
+      buttons: board ? [{ title: 'See the board' }] : [],
+    });
+  } catch (e) {
+    /* Notifications turned off for Chrome: the badge already said as much. */
+  }
+}
+
+function openBoard(id) {
+  const board = boards.get(id);
+  if (board) chrome.tabs.create({ url: board });
+  boards.delete(id);
+  chrome.notifications.clear(id);
+}
+
+chrome.notifications.onClicked.addListener(openBoard);
+chrome.notifications.onButtonClicked.addListener(openBoard);
 
 async function flash(tabId, text, colour) {
   const target = tabId ? { tabId } : {};

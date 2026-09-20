@@ -17,6 +17,21 @@ add_action( 'wp_ajax_inspiration_board_session', 'inspiration_board_ajax_session
 add_action( 'wp_ajax_nopriv_inspiration_board_session', 'inspiration_board_ajax_session_denied' );
 
 /**
+ * Where the board itself lives, for linking to after a pin.
+ *
+ * @return string Permalink, or '' if no page holds the board yet.
+ */
+function inspiration_board_board_link() {
+	if ( ! function_exists( 'inspiration_board_find_page' ) ) {
+		return '';
+	}
+
+	$page = inspiration_board_find_page();
+
+	return ( $page && 'publish' === $page->post_status ) ? (string) get_permalink( $page ) : '';
+}
+
+/**
  * Who may add pins: the same bar as the other importers.
  */
 function inspiration_board_can_pin() {
@@ -97,6 +112,7 @@ function inspiration_board_ajax_session() {
 			'user'    => $user->user_login,
 			'name'    => $user->display_name,
 			'rest'    => esc_url_raw( rest_url( 'inspiration-board/v1/' ) ),
+			'board'   => inspiration_board_board_link(),
 			'version' => INSPIRATION_BOARD_VERSION,
 		)
 	);
@@ -207,6 +223,7 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 				'status'  => 'pinned',
 				'post_id' => (int) $existing,
 				'link'    => get_permalink( $existing ),
+				'board'   => inspiration_board_board_link(),
 				'message' => __( 'Already on the board.', 'inspiration-board' ),
 			)
 		);
@@ -285,6 +302,7 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 			'status'  => 'created',
 			'post_id' => (int) $post_id,
 			'link'    => get_permalink( $post_id ),
+			'board'   => inspiration_board_board_link(),
 			'thumb'   => wp_get_attachment_image_url( $attachment_id, 'medium' ),
 		)
 	);
