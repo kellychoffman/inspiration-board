@@ -111,6 +111,49 @@
 
   const found = new Map();
 
+  const sameSite = (url) => {
+    try {
+      return new URL(url, location.href).origin === location.origin;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const bare = (url) => String(url || '').split('#')[0];
+
+  /**
+   * The post a picture belongs to, when the page is a list of several.
+   *
+   * Pinning while scrolling an archive should link to the post the picture
+   * was in, not to "Page 9" of the blog. So walk up to whatever the page
+   * treats as one post and take the link on its title.
+   *
+   * Jetpack's data-permalink is deliberately not used: it points at the
+   * image's own attachment page, not at the post.
+   *
+   * @return {{url: string, title: string}|null}
+   */
+  function postFor(element) {
+    for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+      if (!node.matches('article, .hentry, .post, .entry, [class*="wp-block-post"], [class*="card"]')) {
+        continue;
+      }
+
+      const link =
+        node.querySelector('a[rel~="bookmark"]') ||
+        node.querySelector('.entry-title a[href], .post-title a[href], .wp-block-post-title a[href]') ||
+        node.querySelector('h1 a[href], h2 a[href], h3 a[href]');
+
+      // A link back to where we already are tells us nothing: this is the
+      // post's own page, and the page address is the right source.
+      if (link && sameSite(link.href) && bare(link.href) !== bare(location.href)) {
+        return { url: absolute(link.href), title: link.textContent.trim().slice(0, 200) };
+      }
+    }
+
+    return null;
+  }
+
   const usable = (url) =>
     !!url && !/^(blob:|about:)/i.test(url) && !/^data:image\/svg/i.test(url) && !/\.svgz?($|\?)/i.test(url);
 
@@ -123,10 +166,10 @@
    * full-size version, then anything bigger the page listed, then the one on
    * screen as the fallback that is certain to work.
    */
-  function add(url, { alt = '', width = 0, height = 0, larger = [] } = {}) {
+  function add(url, { alt = '', width = 0, height = 0, larger = [], source = null } = {}) {
     if (!usable(url)) return;
 
-    const key = url.split('#')[0];
+    const key = bare(url);
     const existing = found.get(key);
     if (existing) {
       // The same picture can appear twice, small in one place and large in
@@ -136,6 +179,7 @@
         existing.height = height;
       }
       if (!existing.alt) existing.alt = alt;
+      if (!existing.source) existing.source = source;
       return;
     }
 
@@ -147,6 +191,7 @@
       alt: alt.trim().slice(0, 200),
       width,
       height,
+      source,
       state: '',
     });
   }
@@ -171,6 +216,7 @@
         width: img.naturalWidth || Math.round(box.width),
         height: img.naturalHeight || Math.round(box.height),
         larger,
+        source: postFor(img),
       });
     });
 
@@ -458,7 +504,13 @@
       const reply = await ask({
         type: 'pin',
         item: { url: item.url, candidates: item.candidates, alt: item.alt },
-        page: { url: location.href, title: document.title },
+        page: {
+          // Where the picture came from, which on an archive is the post it
+          // was in rather than the archive itself.
+          url: (item.source && item.source.url) || location.href,
+          title: (item.source && item.source.title) || document.title,
+          on: location.href,
+        },
       });
 
       if (reply && reply.ok) {

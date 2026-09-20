@@ -175,6 +175,9 @@ async function pin(item, page) {
   // Only an address the site can fetch for itself is worth sending as one.
   if (/^https?:/i.test(url)) form.append('url', url);
   form.append('source', page.url);
+  // The page this was pinned from. When it differs from the source, the
+  // picker has already worked out which post the image belongs to.
+  if (page.on) form.append('page', page.on);
   if (page.title) form.append('title', page.title);
   if (item.alt) form.append('alt', item.alt);
   if (blob) form.append('file', blob, fileNameFor(url, blob.type));
@@ -246,9 +249,13 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'inspiration-board-pin' || !info.srcUrl) return;
   try {
+    // Right-clicking gives us the page and nothing else, so the site itself
+    // works out which post one of its own images belongs to.
+    const where = info.pageUrl || (tab && tab.url) || '';
     const result = await pin({ url: info.srcUrl, candidates: [info.srcUrl] }, {
-      url: info.pageUrl || (tab && tab.url) || '',
+      url: where,
       title: (tab && tab.title) || '',
+      on: where,
     });
     const made = result.status === 'created';
     await flash(tab && tab.id, made ? '✓' : '=', '#2f7d4f');

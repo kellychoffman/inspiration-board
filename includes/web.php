@@ -55,6 +55,10 @@ function inspiration_board_register_web_routes() {
 					'type'     => 'string',
 					'required' => false,
 				),
+				'page'   => array(
+					'type'     => 'string',
+					'required' => false,
+				),
 				'title'  => array(
 					'type'     => 'string',
 					'required' => false,
@@ -172,6 +176,38 @@ function inspiration_board_web_key( $url ) {
 }
 
 /**
+ * An image that is already ours: in this site's media library.
+ *
+ * Worth knowing two things about it. The file need not be downloaded a
+ * second time, and the post it was uploaded to is a better source than
+ * whatever page it was being shown on, which may well be an archive listing
+ * several posts at once.
+ *
+ * @return array|null array( attachment_id, post_id, pin_id ), or null.
+ */
+function inspiration_board_own_image( $image_url ) {
+	if ( ! $image_url || ! function_exists( 'inspiration_board_attachment_from_src' ) ) {
+		return null;
+	}
+
+	$attachment_id = (int) inspiration_board_attachment_from_src( $image_url );
+	if ( ! $attachment_id || ! wp_attachment_is_image( $attachment_id ) ) {
+		return null;
+	}
+
+	$post = wp_get_post_parent_id( $attachment_id ) ? get_post( (int) wp_get_post_parent_id( $attachment_id ) ) : null;
+	$is_pin = $post && inspiration_board_is_pin( $post->ID );
+
+	return array(
+		'attachment_id' => $attachment_id,
+		// Only a published post of your own is worth linking to.
+		'post_id'       => ( $post && ! $is_pin && 'publish' === $post->post_status ) ? (int) $post->ID : 0,
+		// An image that already belongs to a pin: this is your own board.
+		'pin_id'        => $is_pin ? (int) $post->ID : 0,
+	);
+}
+
+/**
  * REST handler: turns one image from a web page into one pin.
  *
  * @return WP_REST_Response|WP_Error
@@ -191,11 +227,32 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 	$files     = $request->get_file_params();
 	$upload    = isset( $files['file'] ) && is_array( $files['file'] ) ? $files['file'] : null;
 	$image_url = esc_url_raw( (string) $request->get_param( 'url' ) );
+	// The page you were actually looking at, which the source may improve on
+	// when the extension worked out which post the image belongs to.
+	$page = esc_url_raw( (string) $request->get_param( 'page' ) );
 
-	// The key normally comes from the image's address. An image with no
-	// address of its own (drawn into the page, or embedded in it) is keyed by
-	// what it contains instead.
-	$key = $image_url ? inspiration_board_web_key( $image_url ) : '';
+	$mine = inspiration_board_own_image( $image_url );
+
+	if ( $mine && $mine['pin_id'] ) {
+		return rest_ensure_response(
+			array(
+				'status'  => 'pinned',
+				'post_id' => $mine['pin_id'],
+				'link'    => get_permalink( $mine['pin_id'] ),
+				'board'   => inspiration_board_board_link(),
+				'message' => __( 'That is a pin of yours already.', 'inspiration-board' ),
+			)
+		);
+	}
+
+	// One of this site's own images is keyed by the file it is, the same way
+	// the Tools screen keys them, so the two ways of adding never collide.
+	// Otherwise the key comes from the image's address, or, for an image with
+	// no address of its own, from what it contains.
+	$key = $mine ? inspiration_board_local_key( $mine['attachment_id'] ) : '';
+	if ( ! $key && $image_url ) {
+		$key = inspiration_board_web_key( $image_url );
+	}
 	if ( ! $key && $upload && ! empty( $upload['tmp_name'] ) && is_readable( $upload['tmp_name'] ) ) {
 		$key = 'web:' . md5_file( $upload['tmp_name'] );
 	}
@@ -231,7 +288,20 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 
 	$title = sanitize_text_field( (string) $request->get_param( 'title' ) );
 	$alt   = sanitize_text_field( (string) $request->get_param( 'alt' ) );
-	$alt   = $alt ? $alt : $title;
+
+	// An archive page lists many posts, so pointing at it says little. When
+	// the image is ours we know exactly which post it belongs to. The
+	// extension's own answer wins when it found one, which it signals by
+	// sending a source different from the page it was on.
+	if ( $mine && $mine['post_id'] && ( ! $page || $source === $page ) ) {
+		$source = (string) get_permalink( $mine['post_id'] );
+		$title  = html_entity_decode( wp_strip_all_tags( get_the_title( $mine['post_id'] ) ) );
+	}
+
+	if ( $mine && ! $alt ) {
+		$alt = (string) get_post_meta( $mine['attachment_id'], '_wp_attachment_image_alt', true );
+	}
+	$alt = $alt ? $alt : $title;
 
 	// The date is the moment of pinning, which is what puts new finds at the
 	// top of the board.
@@ -259,9 +329,14 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 		return $post_id;
 	}
 
-	$attachment_id = $upload
-		? inspiration_board_attach_upload( $post_id, $alt )
-		: inspiration_board_attach_remote( $image_url, $post_id, $alt );
+	// Our own image is used where it sits; anything else is brought in.
+	if ( $mine ) {
+		$attachment_id = $mine['attachment_id'];
+	} else {
+		$attachment_id = $upload
+			? inspiration_board_attach_upload( $post_id, $alt )
+			: inspiration_board_attach_remote( $image_url, $post_id, $alt );
+	}
 
 	if ( is_wp_error( $attachment_id ) ) {
 		wp_delete_post( $post_id, true );
@@ -280,6 +355,9 @@ function inspiration_board_rest_pin( WP_REST_Request $request ) {
 	update_post_meta( $post_id, INSPIRATION_BOARD_META_ORDER, time() );
 	if ( $title ) {
 		update_post_meta( $post_id, INSPIRATION_BOARD_META_PAGE, $title );
+	}
+	if ( $mine && $mine['post_id'] ) {
+		update_post_meta( $post_id, INSPIRATION_BOARD_META_POST, $mine['post_id'] );
 	}
 
 	// Jetpack / WordPress.com: never email subscribers or auto-share pins.
