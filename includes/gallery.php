@@ -225,36 +225,21 @@ function inspiration_board_shortcode( $atts ) {
 		'cat'                 => $category_id,
 		'posts_per_page'      => max( 1, (int) $atts['per_page'] ),
 		'paged'               => $paged,
-		// Bookmark order (see importer), not post date: post dates are
-		// the tweets' own dates.
+		// Newest first by the date of the tweet or post the pin came from,
+		// which is the pin's own post date.
 		'meta_query'          => array(
-			'relation' => 'AND',
-			'order'    => array(
-				'key'  => INSPIRATION_BOARD_META_ORDER,
-				'type' => 'NUMERIC',
-			),
 			array(
 				'key'     => '_thumbnail_id',
 				'compare' => 'EXISTS',
 			),
 		),
 		'orderby'             => array(
-			'order' => 'DESC',
-			'ID'    => 'DESC',
+			'date' => 'DESC',
+			'ID'   => 'DESC',
 		),
 		'ignore_sticky_posts' => true,
 		'no_found_rows'       => false,
 	);
-
-	// Until the one-time upgrade has run, pins have no sort value yet: fall
-	// back to the old date order so the board never shows up empty.
-	if ( (int) get_option( INSPIRATION_BOARD_OPTION_SCHEMA ) < INSPIRATION_BOARD_SCHEMA ) {
-		unset( $args['meta_query']['order'] );
-		$args['orderby'] = array(
-			'date' => 'DESC',
-			'ID'   => 'DESC',
-		);
-	}
 
 	$query = new WP_Query( $args );
 
