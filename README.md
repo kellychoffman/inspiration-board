@@ -17,7 +17,7 @@ Download this repository as a zip, then Plugins → Add New → Upload Plugin �
 
 **From your own posts.** Name a category, click Find images, and pick from the thumbnails. Those pins reuse the existing file and link back to the post.
 
-**The board.** One click creates a page at `/inspiration` using the plugin's full-width, no-sidebar template. Or put `[inspiration_board]` on any page yourself; options are `columns` (default 4) and `per_page` (default 60). A Shuffle link beside the title reorders the tiles at random. (Yes, this is kind of old school with a shortcode, I know I know.)
+**The board.** One click creates a page at `/inspiration` using the plugin's full-width, no-sidebar template. Or put `[inspiration_board]` on any page yourself; options are `columns` (default 4) and `per_page` (default 60). The tiles come up in a new random order on every visit, and the Shuffle link beside the title reshuffles them without a reload. (Yes, this is kind of old school with a shortcode, I know I know.)
 
 Manage this plugin via **Tools → Inspiration Board**.
 

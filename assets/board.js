@@ -135,17 +135,25 @@
 		} );
 	}
 
-	function shuffleLink() {
-		var link = document.querySelector( '.inspiration-board__shuffle' );
+	// The board has no order worth keeping, so it arrives in a new one on
+	// every visit. This runs in the footer, before the images have loaded,
+	// so there is nothing to see happening. The server can't do the
+	// shuffling itself: a cached page would hand everyone the same order.
+	function shuffleOnLoad() {
 		var board = document.querySelector( '.inspiration-board' );
-		if ( ! link || ! board ) {
+		var link = document.querySelector( '.inspiration-board__shuffle' );
+		if ( ! board ) {
 			return;
 		}
-		link.hidden = false;
-		link.addEventListener( 'click', function ( event ) {
-			event.preventDefault();
-			shuffleBoard( board );
-		} );
+		shuffleBoard( board );
+
+		if ( link ) {
+			link.hidden = false;
+			link.addEventListener( 'click', function ( event ) {
+				event.preventDefault();
+				shuffleBoard( board );
+			} );
+		}
 	}
 
 	// A pin's own page: start its video muted, so clicking a tile always
@@ -190,7 +198,7 @@
 	}
 
 	fit();
-	shuffleLink();
+	shuffleOnLoad();
 	keyboardPostNav();
 	playPinVideo();
 	playVisibleGifs();
