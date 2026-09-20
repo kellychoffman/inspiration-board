@@ -61,6 +61,7 @@
 }
 
 .inspiration-board-wrap .inspiration-board__shuffle {
+	margin-left: auto;
 	font-size: 13px;
 	color: var(--ib-muted);
 	text-decoration: none;
